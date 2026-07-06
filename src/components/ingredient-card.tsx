@@ -44,7 +44,7 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
         {ingredient.expiresAt ? `Expiry: ${formatDate(ingredient.expiresAt)}` : 'Expiry date not set'}
       </Text>
 
-      {ingredient.notes ? <Text style={styles.notes}>{ingredient.notes}</Text> : null}
+      {ingredient.note ? <Text style={styles.notes}>{ingredient.note}</Text> : null}
 
       <View style={styles.actionsRow}>
         <AppButton label="Edit" onPress={onEdit} style={styles.actionButton} variant="secondary" />

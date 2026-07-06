@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
@@ -20,7 +21,10 @@ export default function HomeScreen() {
 
   const suggestions = buildRecipeSuggestions(ingredients, recipes);
   const readySuggestions = suggestions.filter((item) => item.status === 'ready').slice(0, 2);
-  const expiringSoonItems = ingredients.filter((item) => isExpiringSoon(item.expiresAt)).slice(0, 3);
+  const expiringSoonItems = useMemo(
+    () => ingredients.filter((item) => isExpiringSoon(item.expiresAt, 3)).slice(0, 3),
+    [ingredients]
+  );
 
   return (
     <Screen

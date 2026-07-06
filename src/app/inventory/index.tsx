@@ -5,33 +5,14 @@ import { AppButton } from '@/components/app-button';
 import { EmptyState } from '@/components/empty-state';
 import { IngredientCard } from '@/components/ingredient-card';
 import { Screen } from '@/components/screen';
-import { palette, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import type { Ingredient } from '@/types/ingredient';
 import { useInventoryStore } from '@/store/useInventoryStore';
-import { getDaysUntil } from '@/utils/date';
-
-function getSortPriority(ingredient: Ingredient) {
-  if (!ingredient.expiresAt) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  const days = getDaysUntil(ingredient.expiresAt);
-  return Number.isNaN(days) ? Number.POSITIVE_INFINITY : days;
-}
 
 export default function InventoryScreen() {
   const router = useRouter();
-  const ingredients = useInventoryStore((state) => state.ingredients);
-  const removeIngredient = useInventoryStore((state) => state.removeIngredient);
-
-  const sortedIngredients = [...ingredients].sort((left, right) => {
-    const dayDifference = getSortPriority(left) - getSortPriority(right);
-    if (dayDifference !== 0) {
-      return dayDifference;
-    }
-
-    return left.name.localeCompare(right.name);
-  });
+  const sortedIngredients = useInventoryStore((state) => state.ingredients);
+  const deleteIngredient = useInventoryStore((state) => state.deleteIngredient);
 
   const handleDelete = (ingredient: Ingredient) => {
     Alert.alert(
@@ -45,7 +26,7 @@ export default function InventoryScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => removeIngredient(ingredient.id),
+          onPress: () => deleteIngredient(ingredient.id),
         },
       ]
     );

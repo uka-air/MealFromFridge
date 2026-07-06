@@ -35,7 +35,7 @@ export default function IngredientFormScreen() {
   const ingredients = useInventoryStore((state) => state.ingredients);
   const addIngredient = useInventoryStore((state) => state.addIngredient);
   const updateIngredient = useInventoryStore((state) => state.updateIngredient);
-  const removeIngredient = useInventoryStore((state) => state.removeIngredient);
+  const deleteIngredient = useInventoryStore((state) => state.deleteIngredient);
 
   const existingIngredient = ingredients.find((item) => item.id === ingredientId);
 
@@ -44,10 +44,16 @@ export default function IngredientFormScreen() {
   const [unit, setUnit] = useState<IngredientUnit>('item');
   const [category, setCategory] = useState<IngredientCategory>('produce');
   const [expiresAt, setExpiresAt] = useState('');
-  const [notes, setNotes] = useState('');
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     if (!existingIngredient) {
+      setName('');
+      setQuantity('1');
+      setUnit('item');
+      setCategory('produce');
+      setExpiresAt('');
+      setNote('');
       return;
     }
 
@@ -56,7 +62,7 @@ export default function IngredientFormScreen() {
     setUnit(existingIngredient.unit);
     setCategory(existingIngredient.category);
     setExpiresAt(existingIngredient.expiresAt ?? '');
-    setNotes(existingIngredient.notes ?? '');
+    setNote(existingIngredient.note ?? '');
   }, [existingIngredient]);
 
   const handleSave = () => {
@@ -82,8 +88,8 @@ export default function IngredientFormScreen() {
       quantity: parsedQuantity,
       unit,
       category,
-      expiresAt: expiryValue || undefined,
-      notes: notes.trim() || undefined,
+      expiresAt: expiryValue || null,
+      note: note.trim() || null,
     };
 
     if (ingredientId && existingIngredient) {
@@ -109,7 +115,7 @@ export default function IngredientFormScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          removeIngredient(ingredientId);
+          deleteIngredient(ingredientId);
           router.back();
         },
       },
@@ -161,9 +167,9 @@ export default function IngredientFormScreen() {
         <FormField
           label="Notes"
           multiline
-          onChangeText={setNotes}
+          onChangeText={setNote}
           placeholder="Optional details like brand, location, or prep notes."
-          value={notes}
+          value={note}
         />
       </SectionCard>
 
