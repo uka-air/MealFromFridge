@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { palette, radius, shadow, spacing } from '@/constants/theme';
@@ -7,14 +7,15 @@ import type { Recipe } from '@/types/recipe';
 
 interface RecipeCardProps {
   recipe: Recipe;
+  onPress?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   footer?: ReactNode;
 }
 
-export function RecipeCard({ recipe, onEdit, onDelete, footer }: RecipeCardProps) {
-  return (
-    <View style={styles.card}>
+export function RecipeCard({ recipe, onPress, onEdit, onDelete, footer }: RecipeCardProps) {
+  const content = (
+    <>
       <View style={styles.header}>
         <Text style={styles.title}>{recipe.name}</Text>
         <Text style={styles.meta}>
@@ -55,7 +56,17 @@ export function RecipeCard({ recipe, onEdit, onDelete, footer }: RecipeCardProps
           ) : null}
         </View>
       ) : null}
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.card}>{content}</View>;
+  }
+
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+      {content}
+    </Pressable>
   );
 }
 
@@ -68,6 +79,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
     ...shadow,
+  },
+  cardPressed: {
+    opacity: 0.92,
   },
   header: {
     gap: spacing.xs,

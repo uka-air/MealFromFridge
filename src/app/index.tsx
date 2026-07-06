@@ -145,6 +145,12 @@ export default function HomeScreen() {
                     )}
                   </View>
                 }
+                onPress={() =>
+                  router.push({
+                    pathname: '/recipes/[id]',
+                    params: { id: suggestion.recipe.id },
+                  })
+                }
                 recipe={suggestion.recipe}
               />
             ))}

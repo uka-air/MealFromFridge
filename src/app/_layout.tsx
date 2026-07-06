@@ -51,6 +51,12 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="recipes/[id]"
+            options={{
+              title: 'Recipe',
+            }}
+          />
+          <Stack.Screen
             name="recipes/recipe-form"
             options={{
               title: 'Recipe',

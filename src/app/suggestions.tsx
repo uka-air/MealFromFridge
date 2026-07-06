@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
@@ -50,6 +51,7 @@ function getSectionMeta(status: SuggestionStatus) {
 }
 
 export default function SuggestionsScreen() {
+  const router = useRouter();
   const ingredients = useInventoryStore((state) => state.ingredients);
   const recipes = useRecipeStore((state) => state.recipes);
 
@@ -104,6 +106,12 @@ export default function SuggestionsScreen() {
                   <RecipeCard
                     footer={renderSuggestionSummary(suggestion)}
                     key={suggestion.recipe.id}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/recipes/[id]',
+                        params: { id: suggestion.recipe.id },
+                      })
+                    }
                     recipe={suggestion.recipe}
                   />
                 ))}
