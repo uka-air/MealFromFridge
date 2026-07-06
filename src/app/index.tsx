@@ -1,68 +1,74 @@
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from "expo-router";
+import { useMemo, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
-import { AppButton } from '@/components/app-button';
-import { EmptyState } from '@/components/empty-state';
-import { RecipeCard } from '@/components/recipe-card';
-import { Screen } from '@/components/screen';
-import { SectionCard } from '@/components/section-card';
-import { StatCard } from '@/components/stat-card';
-import { palette, spacing } from '@/constants/theme';
-import { useInventoryStore } from '@/store/useInventoryStore';
-import { useRecipeStore } from '@/store/useRecipeStore';
-import { formatDate, isExpired, isExpiringSoon } from '@/utils/date';
-import { buildRecipeSuggestions } from '@/utils/suggestionEngine';
+import { AppButton } from "@/components/app-button";
+import { EmptyState } from "@/components/empty-state";
+import { RecipeCard } from "@/components/recipe-card";
+import { Screen } from "@/components/screen";
+import { SectionCard } from "@/components/section-card";
+import { StatCard } from "@/components/stat-card";
+import { palette, spacing } from "@/constants/theme";
+import { useInventoryStore } from "@/store/useInventoryStore";
+import { useRecipeStore } from "@/store/useRecipeStore";
+import { formatDate, isExpired, isExpiringSoon } from "@/utils/date";
+import { buildRecipeSuggestions } from "@/utils/suggestionEngine";
 
-type SuggestionMode = 'expiring' | 'easy';
+type SuggestionMode = "expiring" | "easy";
 
-const EASY_RECIPE_TAGS = ['เร็ว', 'ทำง่าย'];
+const EASY_RECIPE_TAGS = ["เร็ว", "ทำง่าย"];
 
 function getSuggestionSectionSubtitle(mode: SuggestionMode) {
-  if (mode === 'easy') {
-    return 'เมนูที่เน้นทำง่ายและใช้เวลาน้อยที่สุดจากวัตถุดิบที่มีตอนนี้';
+  if (mode === "easy") {
+    return "เมนูที่เน้นทำง่ายและใช้เวลาน้อยที่สุดจากวัตถุดิบที่มีตอนนี้";
   }
 
-  return 'เมนูที่ช่วยใช้วัตถุดิบใกล้หมดอายุให้คุ้มที่สุดก่อน';
+  return "เมนูที่ช่วยใช้วัตถุดิบใกล้หมดอายุให้คุ้มที่สุดก่อน";
 }
 
 export default function HomeScreen() {
   const router = useRouter();
   const ingredients = useInventoryStore((state) => state.ingredients);
   const recipes = useRecipeStore((state) => state.recipes);
-  const [suggestionMode, setSuggestionMode] = useState<SuggestionMode>('expiring');
+  const [suggestionMode, setSuggestionMode] =
+    useState<SuggestionMode>("expiring");
 
   const expiringSoonItems = useMemo(
     () => ingredients.filter((item) => isExpiringSoon(item.expiresAt, 3)),
-    [ingredients]
+    [ingredients],
   );
   const expiredItems = useMemo(
     () => ingredients.filter((item) => isExpired(item.expiresAt)),
-    [ingredients]
+    [ingredients],
   );
   const favoriteRecipesCount = useMemo(
     () => recipes.filter((recipe) => recipe.isFavorite).length,
-    [recipes]
+    [recipes],
   );
   const topSuggestions = useMemo(() => {
     if (!ingredients.length || !recipes.length) {
       return [];
     }
 
-    const selectedTags = suggestionMode === 'easy' ? EASY_RECIPE_TAGS : undefined;
+    const selectedTags =
+      suggestionMode === "easy" ? EASY_RECIPE_TAGS : undefined;
 
     return buildRecipeSuggestions(ingredients, recipes, {
-      preferExpiringSoon: suggestionMode === 'expiring',
+      preferExpiringSoon: suggestionMode === "expiring",
       maxMissingIngredients: 3,
       selectedTags,
     }).slice(0, 3);
   }, [ingredients, recipes, suggestionMode]);
-  const highlightedExpiringItems = useMemo(() => expiringSoonItems.slice(0, 4), [expiringSoonItems]);
+  const highlightedExpiringItems = useMemo(
+    () => expiringSoonItems.slice(0, 4),
+    [expiringSoonItems],
+  );
 
   return (
     <Screen
       title="วันนี้กินอะไรดี?"
-      subtitle="ดูภาพรวมวัตถุดิบ เลือกแนวแนะนำที่อยากได้ แล้วตัดสินใจมื้อถัดไปได้เร็วขึ้น">
+      subtitle="ภาพรวมวัตถุดิบ เลือกแนวที่อยากได้ แล้วได้มื้อที่ถูกใจ"
+    >
       <View style={styles.statGrid}>
         <StatCard
           helper="วัตถุดิบที่บันทึกไว้"
@@ -86,43 +92,41 @@ export default function HomeScreen() {
         />
       </View>
 
-      <SectionCard
-        title="ทางลัด"
-        subtitle="เลือกมุมมองที่อยากได้ หรือไปจัดการวัตถุดิบต่อได้ทันที">
+      <SectionCard title="ทางลัด">
         <View style={styles.buttonGrid}>
           <AppButton
-            label="ใช้ของใกล้เสียก่อน"
-            onPress={() => setSuggestionMode('expiring')}
+            label="ของใกล้เสียก่อน"
+            onPress={() => setSuggestionMode("expiring")}
             style={styles.actionButton}
-            variant={suggestionMode === 'expiring' ? 'primary' : 'secondary'}
+            variant={suggestionMode === "expiring" ? "primary" : "secondary"}
           />
           <AppButton
             label="เมนูง่ายสุด"
-            onPress={() => setSuggestionMode('easy')}
+            onPress={() => setSuggestionMode("easy")}
             style={styles.actionButton}
-            variant={suggestionMode === 'easy' ? 'primary' : 'secondary'}
+            variant={suggestionMode === "easy" ? "primary" : "secondary"}
           />
           <AppButton
-            label="ดูวัตถุดิบทั้งหมด"
-            onPress={() => router.push('/inventory')}
+            label="วัตถุดิบทั้งหมด"
+            onPress={() => router.push("/inventory")}
             style={styles.actionButton}
             variant="secondary"
           />
           <AppButton
             label="เพิ่มวัตถุดิบ"
-            onPress={() => router.push('/inventory/ingredient-form')}
+            onPress={() => router.push("/inventory/ingredient-form")}
             style={styles.actionButton}
             variant="secondary"
           />
           <AppButton
-            label="ดูสูตรทั้งหมด"
-            onPress={() => router.push('/recipes')}
+            label="สูตรทั้งหมด"
+            onPress={() => router.push("/recipes")}
             style={styles.actionButton}
             variant="secondary"
           />
           <AppButton
             label="เพิ่มสูตรอาหาร"
-            onPress={() => router.push('/recipes/recipe-form')}
+            onPress={() => router.push("/recipes/recipe-form")}
             style={styles.actionButton}
             variant="secondary"
           />
@@ -131,7 +135,8 @@ export default function HomeScreen() {
 
       <SectionCard
         title="เมนูแนะนำ 3 อันดับแรก"
-        subtitle={getSuggestionSectionSubtitle(suggestionMode)}>
+        subtitle={getSuggestionSectionSubtitle(suggestionMode)}
+      >
         {topSuggestions.length ? (
           <View style={styles.listGroup}>
             {topSuggestions.map((suggestion) => (
@@ -140,26 +145,32 @@ export default function HomeScreen() {
                 footer={
                   <View style={styles.recipeSummary}>
                     <Text style={styles.recipeFooter}>
-                      คะแนน {suggestion.score} • ตรงวัตถุดิบ {suggestion.matchedIngredients.length}{' '}
-                      อย่าง
+                      คะแนน {suggestion.score} • ตรงวัตถุดิบ{" "}
+                      {suggestion.matchedIngredients.length} อย่าง
                     </Text>
                     {suggestion.expiringIngredientsUsed.length ? (
                       <Text style={styles.recipeFooter}>
-                        ใช้วัตถุดิบใกล้หมดอายุ {suggestion.expiringIngredientsUsed.length} อย่าง
+                        ใช้วัตถุดิบใกล้หมดอายุ{" "}
+                        {suggestion.expiringIngredientsUsed.length} อย่าง
                       </Text>
                     ) : null}
                     {suggestion.missingIngredients.length ? (
                       <Text style={styles.recipeFooter}>
-                        ยังขาด: {suggestion.missingIngredients.map((item) => item.ingredientName).join(', ')}
+                        ยังขาด:{" "}
+                        {suggestion.missingIngredients
+                          .map((item) => item.ingredientName)
+                          .join(", ")}
                       </Text>
                     ) : (
-                      <Text style={styles.recipeFooter}>มีวัตถุดิบพร้อมทำแล้ว</Text>
+                      <Text style={styles.recipeFooter}>
+                        มีวัตถุดิบพร้อมทำแล้ว
+                      </Text>
                     )}
                   </View>
                 }
                 onPress={() =>
                   router.push({
-                    pathname: '/recipes/[id]',
+                    pathname: "/recipes/[id]",
                     params: { id: suggestion.recipe.id },
                   })
                 }
@@ -173,9 +184,18 @@ export default function HomeScreen() {
             title="ยังไม่มีเมนูที่แนะนำได้"
           />
         )}
+        <AppButton
+          label="เมนูแนะนำ"
+          onPress={() => router.push("/suggestions")}
+          style={{ marginTop: spacing.md }}
+          variant="secondary"
+        />
       </SectionCard>
 
-      <SectionCard title="วัตถุดิบใกล้หมดอายุ" subtitle="เช็กของที่ควรหยิบมาใช้ก่อนในช่วง 3 วันนี้">
+      <SectionCard
+        title="วัตถุดิบใกล้หมดอายุ"
+        subtitle="เช็กของที่ควรหยิบมาใช้ก่อนในช่วง 3 วันนี้"
+      >
         {highlightedExpiringItems.length ? (
           <View style={styles.listGroup}>
             {highlightedExpiringItems.map((item) => (
@@ -190,7 +210,9 @@ export default function HomeScreen() {
                   {item.quantity} {item.unit} • {item.category}
                 </Text>
                 <Text style={styles.previewMeta}>
-                  {item.expiresAt ? `หมดอายุ ${formatDate(item.expiresAt)}` : 'ยังไม่ได้ตั้งวันหมดอายุ'}
+                  {item.expiresAt
+                    ? `หมดอายุ ${formatDate(item.expiresAt)}`
+                    : "ยังไม่ได้ตั้งวันหมดอายุ"}
                 </Text>
               </View>
             ))}
@@ -208,17 +230,17 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   statGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
   },
   buttonGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
   },
   actionButton: {
-    flexBasis: '48%',
+    flexBasis: "48%",
     flexGrow: 1,
   },
   listGroup: {
@@ -234,15 +256,15 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   previewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     gap: spacing.sm,
   },
   previewTitle: {
     color: palette.text,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: "700",
     flex: 1,
   },
   previewMeta: {
@@ -258,7 +280,7 @@ const styles = StyleSheet.create({
   previewBadgeText: {
     color: palette.warning,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   recipeFooter: {
     color: palette.textMuted,

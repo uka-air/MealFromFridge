@@ -1,10 +1,10 @@
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { StyleSheet } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { palette } from '@/constants/theme';
+import { palette } from "@/constants/theme";
 
 export default function RootLayout() {
   return (
@@ -20,52 +20,53 @@ export default function RootLayout() {
             headerTintColor: palette.text,
             headerTitleStyle: {
               color: palette.text,
-              fontWeight: '700',
+              fontWeight: "700",
             },
             contentStyle: {
               backgroundColor: palette.background,
             },
-          }}>
+          }}
+        >
           <Stack.Screen
             name="index"
             options={{
-              title: 'วันนี้กินอะไรดี?',
+              title: "Meal From Fridge",
             }}
           />
           <Stack.Screen
             name="inventory/index"
             options={{
-              title: 'Inventory',
+              title: "Inventory",
             }}
           />
           <Stack.Screen
             name="inventory/ingredient-form"
             options={{
-              title: 'Ingredient',
+              title: "Ingredient",
             }}
           />
           <Stack.Screen
             name="recipes/index"
             options={{
-              title: 'Recipes',
+              title: "Recipes",
             }}
           />
           <Stack.Screen
             name="recipes/[id]"
             options={{
-              title: 'Recipe',
+              title: "Recipe",
             }}
           />
           <Stack.Screen
             name="recipes/recipe-form"
             options={{
-              title: 'Recipe',
+              title: "Recipe",
             }}
           />
           <Stack.Screen
             name="suggestions"
             options={{
-              title: 'Suggestions',
+              title: "Suggestions",
             }}
           />
         </Stack>
