@@ -17,6 +17,38 @@ function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
+function matchesExactName(candidateName: string, targetName: string) {
+  return normalize(candidateName) === normalize(targetName);
+}
+
+function matchesFlexibleName(candidateName: string, targetName: string) {
+  const normalizedCandidateName = normalize(candidateName);
+  const normalizedTargetName = normalize(targetName);
+
+  return (
+    normalizedCandidateName === normalizedTargetName ||
+    normalizedCandidateName.includes(normalizedTargetName) ||
+    normalizedTargetName.includes(normalizedCandidateName)
+  );
+}
+
+function matchesRequirement(
+  inventoryIngredient: Ingredient,
+  requirement: RecipeIngredientRequirement
+) {
+  if (matchesExactName(inventoryIngredient.name, requirement.ingredientName)) {
+    return true;
+  }
+
+  if (!requirement.matchAnyOf?.length) {
+    return false;
+  }
+
+  return requirement.matchAnyOf.some((option) =>
+    matchesFlexibleName(inventoryIngredient.name, option)
+  );
+}
+
 function hasEnoughIngredient(
   inventoryIngredient: Ingredient,
   requirement: RecipeIngredientRequirement
@@ -33,23 +65,16 @@ function hasEnoughIngredient(
 }
 
 export function buildRecipeSuggestions(inventory: Ingredient[], recipes: Recipe[]) {
-  const inventoryByName = new Map<string, Ingredient[]>();
-
-  inventory.forEach((ingredient) => {
-    const key = normalize(ingredient.name);
-    const existing = inventoryByName.get(key) ?? [];
-    existing.push(ingredient);
-    inventoryByName.set(key, existing);
-  });
-
   const suggestions: RecipeSuggestion[] = recipes.map((recipe) => {
     const requiredIngredients = recipe.ingredients.filter((item) => !item.optional);
     const matchedIngredients: Ingredient[] = [];
     const missingIngredients: RecipeIngredientRequirement[] = [];
 
     requiredIngredients.forEach((requirement) => {
-      const matches = inventoryByName.get(normalize(requirement.ingredientName)) ?? [];
-      const ingredient = matches.find((candidate) => hasEnoughIngredient(candidate, requirement));
+      const ingredient = inventory.find(
+        (candidate) =>
+          matchesRequirement(candidate, requirement) && hasEnoughIngredient(candidate, requirement)
+      );
 
       if (ingredient) {
         matchedIngredients.push(ingredient);

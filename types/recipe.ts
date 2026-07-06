@@ -6,6 +6,7 @@ export interface RecipeIngredientRequirement {
   quantity?: number;
   unit?: IngredientUnit;
   optional?: boolean;
+  matchAnyOf?: string[];
 }
 
 export interface Recipe {

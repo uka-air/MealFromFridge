@@ -17,6 +17,8 @@ interface IngredientLine {
   name: string;
   quantity: string;
   unit: IngredientUnit;
+  optional?: boolean;
+  matchAnyOf?: string[];
 }
 
 interface InstructionLine {
@@ -88,6 +90,8 @@ export default function RecipeFormScreen() {
             name: ingredient.ingredientName,
             quantity: ingredient.quantity ? String(ingredient.quantity) : '',
             unit: ingredient.unit ?? 'item',
+            optional: ingredient.optional,
+            matchAnyOf: ingredient.matchAnyOf ? [...ingredient.matchAnyOf] : undefined,
           }))
         : [createIngredientLine()]
     );
@@ -143,6 +147,7 @@ export default function RecipeFormScreen() {
         quantity?: number;
         unit?: IngredientUnit;
         optional?: boolean;
+        matchAnyOf?: string[];
       }[]
     >((accumulator, line) => {
       const ingredientName = line.name.trim();
@@ -164,6 +169,8 @@ export default function RecipeFormScreen() {
         ingredientName,
         quantity: parsedQuantity,
         unit: line.unit,
+        optional: line.optional,
+        matchAnyOf: line.matchAnyOf ? [...line.matchAnyOf] : undefined,
       });
 
       return accumulator;
@@ -306,7 +313,12 @@ export default function RecipeFormScreen() {
               <FormField
                 autoCapitalize="words"
                 label={`Ingredient ${index + 1}`}
-                onChangeText={(value) => updateIngredientLine(line.id, { name: value })}
+                onChangeText={(value) =>
+                  updateIngredientLine(line.id, {
+                    name: value,
+                    matchAnyOf: undefined,
+                  })
+                }
                 placeholder="Cooked rice"
                 value={line.name}
               />
