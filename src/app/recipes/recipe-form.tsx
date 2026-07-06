@@ -7,6 +7,7 @@ import { ChipSelect, type SelectOption } from '@/components/chip-select';
 import { FormField } from '@/components/form-field';
 import { Screen } from '@/components/screen';
 import { SectionCard } from '@/components/section-card';
+import { ToggleChip } from '@/components/toggle-chip';
 import { palette, radius, spacing } from '@/constants/theme';
 import { useRecipeStore } from '@/store/useRecipeStore';
 import { INGREDIENT_UNITS, type IngredientUnit } from '@/types/ingredient';
@@ -17,13 +18,8 @@ interface IngredientLine {
   name: string;
   quantity: string;
   unit: IngredientUnit;
-  optional?: boolean;
+  optional: boolean;
   matchAnyOf?: string[];
-}
-
-interface InstructionLine {
-  id: string;
-  value: string;
 }
 
 const unitOptions: SelectOption<IngredientUnit>[] = INGREDIENT_UNITS.map((value) => ({
@@ -37,13 +33,7 @@ function createIngredientLine(): IngredientLine {
     name: '',
     quantity: '',
     unit: 'item',
-  };
-}
-
-function createInstructionLine(value = ''): InstructionLine {
-  return {
-    id: createId('draft-step'),
-    value,
+    optional: false,
   };
 }
 
@@ -60,29 +50,28 @@ export default function RecipeFormScreen() {
   const existingRecipe = recipes.find((recipe) => recipe.id === recipeId);
 
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [prepMinutes, setPrepMinutes] = useState('10');
   const [cookMinutes, setCookMinutes] = useState('15');
-  const [servings, setServings] = useState('2');
   const [tagsText, setTagsText] = useState('');
-  const [notes, setNotes] = useState('');
+  const [stepsText, setStepsText] = useState('');
+  const [isFavorite, setIsFavorite] = useState(false);
   const [ingredientLines, setIngredientLines] = useState<IngredientLine[]>([createIngredientLine()]);
-  const [instructionLines, setInstructionLines] = useState<InstructionLine[]>([
-    createInstructionLine(),
-  ]);
 
   useEffect(() => {
     if (!existingRecipe) {
+      setName('');
+      setCookMinutes('15');
+      setTagsText('');
+      setStepsText('');
+      setIsFavorite(false);
+      setIngredientLines([createIngredientLine()]);
       return;
     }
 
     setName(existingRecipe.name);
-    setDescription(existingRecipe.description);
-    setPrepMinutes(String(existingRecipe.prepMinutes));
     setCookMinutes(String(existingRecipe.cookMinutes));
-    setServings(String(existingRecipe.servings));
     setTagsText(existingRecipe.tags.join(', '));
-    setNotes(existingRecipe.notes ?? '');
+    setStepsText(existingRecipe.instructions.join('\n'));
+    setIsFavorite(existingRecipe.isFavorite);
     setIngredientLines(
       existingRecipe.ingredients.length
         ? existingRecipe.ingredients.map((ingredient) => ({
@@ -90,15 +79,10 @@ export default function RecipeFormScreen() {
             name: ingredient.ingredientName,
             quantity: ingredient.quantity ? String(ingredient.quantity) : '',
             unit: ingredient.unit ?? 'item',
-            optional: ingredient.optional,
+            optional: !!ingredient.optional,
             matchAnyOf: ingredient.matchAnyOf ? [...ingredient.matchAnyOf] : undefined,
           }))
         : [createIngredientLine()]
-    );
-    setInstructionLines(
-      existingRecipe.instructions.length
-        ? existingRecipe.instructions.map((instruction) => createInstructionLine(instruction))
-        : [createInstructionLine()]
     );
   }, [existingRecipe]);
 
@@ -108,34 +92,15 @@ export default function RecipeFormScreen() {
     );
   };
 
-  const updateInstructionLine = (id: string, value: string) => {
-    setInstructionLines((current) =>
-      current.map((line) => (line.id === id ? { ...line, value } : line))
-    );
-  };
-
   const handleSave = () => {
     if (!name.trim()) {
       Alert.alert('Missing recipe name', 'Please enter a recipe name.');
       return;
     }
 
-    const parsedPrepMinutes = Number(prepMinutes);
     const parsedCookMinutes = Number(cookMinutes);
-    const parsedServings = Number(servings);
-
-    if (
-      !Number.isFinite(parsedPrepMinutes) ||
-      !Number.isFinite(parsedCookMinutes) ||
-      !Number.isFinite(parsedServings) ||
-      parsedPrepMinutes < 0 ||
-      parsedCookMinutes < 0 ||
-      parsedServings <= 0
-    ) {
-      Alert.alert(
-        'Invalid numbers',
-        'Prep time, cook time, and servings need valid numbers. Servings should be greater than zero.'
-      );
+    if (!Number.isFinite(parsedCookMinutes) || parsedCookMinutes < 0) {
+      Alert.alert('Invalid cook time', 'Cook time should be a valid number that is zero or more.');
       return;
     }
 
@@ -169,7 +134,7 @@ export default function RecipeFormScreen() {
         ingredientName,
         quantity: parsedQuantity,
         unit: line.unit,
-        optional: line.optional,
+        optional: line.optional || undefined,
         matchAnyOf: line.matchAnyOf ? [...line.matchAnyOf] : undefined,
       });
 
@@ -177,7 +142,10 @@ export default function RecipeFormScreen() {
     }, []);
 
     if (hasInvalidIngredientQuantity) {
-      Alert.alert('Invalid ingredient quantity', 'Ingredient quantities should be numbers greater than zero.');
+      Alert.alert(
+        'Invalid ingredient quantity',
+        'Ingredient quantities should be numbers greater than zero.'
+      );
       return;
     }
 
@@ -186,28 +154,30 @@ export default function RecipeFormScreen() {
       return;
     }
 
-    const instructions = instructionLines
-      .map((line) => line.value.trim())
-      .filter((instruction) => instruction.length > 0);
+    const steps = stepsText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
-    if (!instructions.length) {
-      Alert.alert('Missing steps', 'Add at least one instruction step.');
+    if (!steps.length) {
+      Alert.alert('Missing steps', 'Please add at least one cooking step.');
       return;
     }
 
     const draft = {
       name: name.trim(),
-      description: description.trim(),
-      prepMinutes: parsedPrepMinutes,
+      isFavorite,
+      description: existingRecipe?.description ?? '',
+      prepMinutes: existingRecipe?.prepMinutes ?? 0,
       cookMinutes: parsedCookMinutes,
-      servings: parsedServings,
+      servings: existingRecipe?.servings ?? 1,
       ingredients,
-      instructions,
+      instructions: steps,
       tags: tagsText
         .split(',')
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0),
-      notes: notes.trim() || undefined,
+      notes: existingRecipe?.notes,
     };
 
     if (recipeId && existingRecipe) {
@@ -243,70 +213,42 @@ export default function RecipeFormScreen() {
   return (
     <Screen
       title={existingRecipe ? 'Edit recipe' : 'Add recipe'}
-      subtitle="Store the basics only for now: ingredients, steps, timing, servings, and a few lightweight tags.">
-      <SectionCard title="Recipe basics">
+      subtitle="Keep each recipe lightweight but clear enough to save and reuse.">
+      <SectionCard title="Recipe details">
         <FormField
           autoCapitalize="words"
-          label="Name"
+          label="Recipe name"
           onChangeText={setName}
-          placeholder="Veggie fried rice"
+          placeholder="Thai basil chicken"
           value={name}
         />
         <FormField
-          label="Description"
-          multiline
-          onChangeText={setDescription}
-          placeholder="A fast weeknight dinner that uses leftover rice and vegetables."
-          value={description}
+          keyboardType="number-pad"
+          label="Cook time (minutes)"
+          onChangeText={setCookMinutes}
+          placeholder="15"
+          value={cookMinutes}
         />
-
-        <View style={styles.inlineFields}>
-          <View style={styles.inlineField}>
-            <FormField
-              keyboardType="number-pad"
-              label="Prep minutes"
-              onChangeText={setPrepMinutes}
-              placeholder="10"
-              value={prepMinutes}
-            />
-          </View>
-          <View style={styles.inlineField}>
-            <FormField
-              keyboardType="number-pad"
-              label="Cook minutes"
-              onChangeText={setCookMinutes}
-              placeholder="15"
-              value={cookMinutes}
-            />
-          </View>
-          <View style={styles.inlineField}>
-            <FormField
-              keyboardType="number-pad"
-              label="Servings"
-              onChangeText={setServings}
-              placeholder="2"
-              value={servings}
-            />
-          </View>
-        </View>
-
         <FormField
           autoCapitalize="none"
           label="Tags"
           onChangeText={setTagsText}
-          placeholder="quick, vegetarian, dinner"
+          placeholder="quick, spicy, dinner"
           value={tagsText}
         />
-        <FormField
-          label="Notes"
-          multiline
-          onChangeText={setNotes}
-          placeholder="Optional notes like substitutions or serving ideas."
-          value={notes}
+        <Text style={styles.helperText}>Separate tags with commas.</Text>
+        <ToggleChip
+          activeLabel="Favorite"
+          inactiveLabel="Not favorite"
+          label="Favorite"
+          onChange={setIsFavorite}
+          value={isFavorite}
         />
       </SectionCard>
 
-      <SectionCard title="Ingredients" subtitle="Add each required ingredient as its own row.">
+      <SectionCard
+        title="Ingredients"
+        subtitle="Add the main ingredients you need. Optional items will not block suggestions.">
         <View style={styles.listGroup}>
           {ingredientLines.map((line, index) => (
             <View key={line.id} style={styles.embeddedCard}>
@@ -319,26 +261,38 @@ export default function RecipeFormScreen() {
                     matchAnyOf: undefined,
                   })
                 }
-                placeholder="Cooked rice"
+                placeholder="Chicken breast"
                 value={line.name}
               />
+
               <View style={styles.inlineFields}>
                 <View style={styles.inlineField}>
                   <FormField
                     keyboardType="decimal-pad"
                     label="Quantity"
                     onChangeText={(value) => updateIngredientLine(line.id, { quantity: value })}
-                    placeholder="2"
+                    placeholder="1"
                     value={line.quantity}
                   />
                 </View>
+                <View style={styles.inlineField}>
+                  <ChipSelect
+                    label="Unit"
+                    onChange={(value) => updateIngredientLine(line.id, { unit: value })}
+                    options={unitOptions}
+                    value={line.unit}
+                  />
+                </View>
               </View>
-              <ChipSelect
-                label="Unit"
-                onChange={(value) => updateIngredientLine(line.id, { unit: value })}
-                options={unitOptions}
-                value={line.unit}
+
+              <ToggleChip
+                activeLabel="Optional"
+                inactiveLabel="Required"
+                label="Ingredient type"
+                onChange={(value) => updateIngredientLine(line.id, { optional: value })}
+                value={line.optional}
               />
+
               {ingredientLines.length > 1 ? (
                 <AppButton
                   label="Remove line"
@@ -359,41 +313,23 @@ export default function RecipeFormScreen() {
         />
       </SectionCard>
 
-      <SectionCard title="Instructions" subtitle="Break the recipe into short, easy-to-follow steps.">
-        <View style={styles.listGroup}>
-          {instructionLines.map((line, index) => (
-            <View key={line.id} style={styles.embeddedCard}>
-              <Text style={styles.stepLabel}>Step {index + 1}</Text>
-              <FormField
-                label="Instruction"
-                multiline
-                onChangeText={(value) => updateInstructionLine(line.id, value)}
-                placeholder="Heat the pan and saute the aromatics."
-                value={line.value}
-              />
-              {instructionLines.length > 1 ? (
-                <AppButton
-                  label="Remove step"
-                  onPress={() =>
-                    setInstructionLines((current) => current.filter((item) => item.id !== line.id))
-                  }
-                  variant="ghost"
-                />
-              ) : null}
-            </View>
-          ))}
-        </View>
-
-        <AppButton
-          label="Add instruction step"
-          onPress={() => setInstructionLines((current) => [...current, createInstructionLine()])}
-          variant="secondary"
+      <SectionCard
+        title="Steps"
+        subtitle="Write one step per line so the recipe stays easy to scan later.">
+        <FormField
+          label="Cooking steps"
+          multiline
+          onChangeText={setStepsText}
+          placeholder={'1. Prep the ingredients\n2. Heat the pan\n3. Cook and season'}
+          value={stepsText}
         />
       </SectionCard>
 
       <View style={styles.actionsStack}>
-        <AppButton label={existingRecipe ? 'Save changes' : 'Add recipe'} onPress={handleSave} />
-        {existingRecipe ? <AppButton label="Delete recipe" onPress={handleDelete} variant="danger" /> : null}
+        <AppButton label={existingRecipe ? 'Save changes' : 'Save recipe'} onPress={handleSave} />
+        {existingRecipe ? (
+          <AppButton label="Delete recipe" onPress={handleDelete} variant="danger" />
+        ) : null}
       </View>
     </Screen>
   );
@@ -418,10 +354,10 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
   },
-  stepLabel: {
-    color: palette.text,
-    fontSize: 14,
-    fontWeight: '700',
+  helperText: {
+    marginTop: -spacing.md,
+    color: palette.textMuted,
+    fontSize: 13,
   },
   actionsStack: {
     gap: spacing.sm,

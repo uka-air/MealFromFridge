@@ -12,6 +12,7 @@ export interface RecipeIngredientRequirement {
 export interface Recipe {
   id: string;
   name: string;
+  isFavorite: boolean;
   description: string;
   ingredients: RecipeIngredientRequirement[];
   instructions: string[];
@@ -26,6 +27,7 @@ export interface Recipe {
 
 export interface RecipeDraft {
   name: string;
+  isFavorite?: boolean;
   description: string;
   ingredients: Omit<RecipeIngredientRequirement, 'id'>[];
   instructions: string[];

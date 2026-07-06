@@ -17,17 +17,6 @@ import { buildRecipeSuggestions } from '@/utils/suggestionEngine';
 type SuggestionMode = 'expiring' | 'easy';
 
 const EASY_RECIPE_TAGS = ['เร็ว', 'ทำง่าย'];
-const FAVORITE_RECIPE_TAGS = ['favorite', 'favourite', 'ของโปรด'];
-
-function normalize(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function isFavoriteRecipe(tags: string[]) {
-  const normalizedTags = new Set(tags.map((tag) => normalize(tag)));
-
-  return FAVORITE_RECIPE_TAGS.some((tag) => normalizedTags.has(normalize(tag)));
-}
 
 function getSuggestionSectionSubtitle(mode: SuggestionMode) {
   if (mode === 'easy') {
@@ -52,7 +41,7 @@ export default function HomeScreen() {
     [ingredients]
   );
   const favoriteRecipesCount = useMemo(
-    () => recipes.filter((recipe) => isFavoriteRecipe(recipe.tags)).length,
+    () => recipes.filter((recipe) => recipe.isFavorite).length,
     [recipes]
   );
   const topSuggestions = useMemo(() => {
@@ -91,7 +80,7 @@ export default function HomeScreen() {
           value={String(expiredItems.length)}
         />
         <StatCard
-          helper="นับจากแท็ก favorite / ของโปรด"
+          helper="สูตรที่ทำเครื่องหมายไว้"
           label="เมนูโปรด"
           value={String(favoriteRecipesCount)}
         />

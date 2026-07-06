@@ -310,6 +310,7 @@ function buildNotes(template: RecipeTemplate) {
 function createSeedRecipeDraft(template: RecipeTemplate): RecipeDraft {
   return {
     name: template.name,
+    isFavorite: false,
     description: buildDescription(template),
     ingredients: [
       ...template.required.map((ingredientName) =>
