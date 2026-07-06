@@ -114,6 +114,18 @@ export default function HomeScreen() {
             style={styles.actionButton}
             variant="secondary"
           />
+          <AppButton
+            label="ดูสูตรทั้งหมด"
+            onPress={() => router.push('/recipes')}
+            style={styles.actionButton}
+            variant="secondary"
+          />
+          <AppButton
+            label="เพิ่มสูตรอาหาร"
+            onPress={() => router.push('/recipes/recipe-form')}
+            style={styles.actionButton}
+            variant="secondary"
+          />
         </View>
       </SectionCard>
 
