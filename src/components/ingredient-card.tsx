@@ -1,19 +1,26 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { palette, radius, shadow, spacing } from '@/constants/theme';
 import type { Ingredient } from '@/types/ingredient';
-import { formatDate, getExpiryLabel, isExpired, isExpiringSoon } from '@/utils/date';
+import {
+  formatDate,
+  getExpiryLabel,
+  isExpired,
+  isExpiringSoon,
+  toDateInputValue,
+} from '@/utils/date';
 
 interface IngredientCardProps {
   ingredient: Ingredient;
-  onEdit: () => void;
+  onPress: () => void;
   onDelete: () => void;
 }
 
-export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardProps) {
+export function IngredientCard({ ingredient, onPress, onDelete }: IngredientCardProps) {
   const expired = isExpired(ingredient.expiresAt);
   const expiringSoon = isExpiringSoon(ingredient.expiresAt);
+  const purchasedAt = toDateInputValue(ingredient.purchasedAt);
 
   const badgeStyle = expired
     ? styles.badgeDanger
@@ -25,29 +32,40 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
     : expiringSoon
       ? styles.badgeTextWarning
       : styles.badgeTextNeutral;
+  const cardHighlightStyle = expired
+    ? styles.cardExpired
+    : expiringSoon
+      ? styles.cardExpiring
+      : undefined;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.headerRow}>
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>{ingredient.name}</Text>
-          <Text style={styles.meta}>
-            {ingredient.quantity} {ingredient.unit} • {ingredient.category}
-          </Text>
+    <View style={[styles.card, cardHighlightStyle]}>
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.content, pressed && styles.pressed]}>
+        <View style={styles.headerRow}>
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>{ingredient.name}</Text>
+            <Text style={styles.meta}>
+              {ingredient.quantity} {ingredient.unit} • {ingredient.category}
+            </Text>
+          </View>
+          <View style={[styles.badge, badgeStyle]}>
+            <Text style={[styles.badgeText, badgeTextStyle]}>
+              {getExpiryLabel(ingredient.expiresAt)}
+            </Text>
+          </View>
         </View>
-        <View style={[styles.badge, badgeStyle]}>
-          <Text style={[styles.badgeText, badgeTextStyle]}>{getExpiryLabel(ingredient.expiresAt)}</Text>
-        </View>
-      </View>
 
-      <Text style={styles.detail}>
-        {ingredient.expiresAt ? `Expiry: ${formatDate(ingredient.expiresAt)}` : 'Expiry date not set'}
-      </Text>
+        <Text style={styles.detail}>
+          {ingredient.expiresAt ? `Expiry: ${formatDate(ingredient.expiresAt)}` : 'Expiry date not set'}
+        </Text>
+        <Text style={styles.detail}>
+          Purchased: {purchasedAt || 'Not set'}
+        </Text>
 
-      {ingredient.notes ? <Text style={styles.notes}>{ingredient.notes}</Text> : null}
+        {ingredient.note ? <Text style={styles.notes}>{ingredient.note}</Text> : null}
+      </Pressable>
 
       <View style={styles.actionsRow}>
-        <AppButton label="Edit" onPress={onEdit} style={styles.actionButton} variant="secondary" />
         <AppButton label="Delete" onPress={onDelete} style={styles.actionButton} variant="danger" />
       </View>
     </View>
@@ -63,6 +81,20 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
     ...shadow,
+  },
+  cardExpiring: {
+    borderColor: palette.warning,
+    backgroundColor: '#FFFDF8',
+  },
+  cardExpired: {
+    borderColor: palette.danger,
+    backgroundColor: '#FFF8F8',
+  },
+  content: {
+    gap: spacing.md,
+  },
+  pressed: {
+    opacity: 0.92,
   },
   headerRow: {
     gap: spacing.md,
@@ -117,10 +149,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actionsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'flex-end',
   },
   actionButton: {
-    flex: 1,
+    minWidth: 120,
   },
 });

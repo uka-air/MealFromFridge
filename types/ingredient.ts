@@ -29,20 +29,22 @@ export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
 export interface Ingredient {
   id: string;
   name: string;
+  category: IngredientCategory;
   quantity: number;
   unit: IngredientUnit;
-  category: IngredientCategory;
-  expiresAt?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  purchasedAt: string;
+  expiresAt: string | null;
+  note: string | null;
 }
 
 export interface IngredientDraft {
   name: string;
+  category: IngredientCategory;
   quantity: number;
   unit: IngredientUnit;
-  category: IngredientCategory;
-  expiresAt?: string;
-  notes?: string;
+  purchasedAt?: string;
+  expiresAt?: string | null;
+  note?: string | null;
 }
+
+export type IngredientUpdate = Partial<IngredientDraft>;

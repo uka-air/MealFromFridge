@@ -15,7 +15,11 @@ import {
   type IngredientCategory,
   type IngredientUnit,
 } from '@/types/ingredient';
-import { isValidDateInput } from '@/utils/date';
+import {
+  getTodayDateInputValue,
+  isValidDateInput,
+  toDateInputValue,
+} from '@/utils/date';
 
 const unitOptions: SelectOption<IngredientUnit>[] = INGREDIENT_UNITS.map((value) => ({
   label: value.toUpperCase(),
@@ -35,7 +39,7 @@ export default function IngredientFormScreen() {
   const ingredients = useInventoryStore((state) => state.ingredients);
   const addIngredient = useInventoryStore((state) => state.addIngredient);
   const updateIngredient = useInventoryStore((state) => state.updateIngredient);
-  const removeIngredient = useInventoryStore((state) => state.removeIngredient);
+  const deleteIngredient = useInventoryStore((state) => state.deleteIngredient);
 
   const existingIngredient = ingredients.find((item) => item.id === ingredientId);
 
@@ -43,11 +47,19 @@ export default function IngredientFormScreen() {
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState<IngredientUnit>('item');
   const [category, setCategory] = useState<IngredientCategory>('produce');
+  const [purchasedAt, setPurchasedAt] = useState(getTodayDateInputValue());
   const [expiresAt, setExpiresAt] = useState('');
-  const [notes, setNotes] = useState('');
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     if (!existingIngredient) {
+      setName('');
+      setQuantity('1');
+      setUnit('item');
+      setCategory('produce');
+      setPurchasedAt(getTodayDateInputValue());
+      setExpiresAt('');
+      setNote('');
       return;
     }
 
@@ -55,8 +67,9 @@ export default function IngredientFormScreen() {
     setQuantity(String(existingIngredient.quantity));
     setUnit(existingIngredient.unit);
     setCategory(existingIngredient.category);
-    setExpiresAt(existingIngredient.expiresAt ?? '');
-    setNotes(existingIngredient.notes ?? '');
+    setPurchasedAt(toDateInputValue(existingIngredient.purchasedAt) || getTodayDateInputValue());
+    setExpiresAt(toDateInputValue(existingIngredient.expiresAt));
+    setNote(existingIngredient.note ?? '');
   }, [existingIngredient]);
 
   const handleSave = () => {
@@ -71,9 +84,26 @@ export default function IngredientFormScreen() {
       return;
     }
 
+    const purchasedAtValue = purchasedAt.trim();
+    if (!purchasedAtValue) {
+      Alert.alert('Missing purchase date', 'Please enter when you bought this ingredient.');
+      return;
+    }
+    if (!isValidDateInput(purchasedAtValue)) {
+      Alert.alert('Invalid purchase date', 'Please use the format YYYY-MM-DD for the purchase date.');
+      return;
+    }
+
     const expiryValue = expiresAt.trim();
     if (expiryValue && !isValidDateInput(expiryValue)) {
       Alert.alert('Invalid date', 'Please use the format YYYY-MM-DD for expiry dates.');
+      return;
+    }
+    if (expiryValue && purchasedAtValue > expiryValue) {
+      Alert.alert(
+        'Invalid expiry date',
+        'Expiry date should be the same as or later than the purchase date.'
+      );
       return;
     }
 
@@ -82,8 +112,9 @@ export default function IngredientFormScreen() {
       quantity: parsedQuantity,
       unit,
       category,
-      expiresAt: expiryValue || undefined,
-      notes: notes.trim() || undefined,
+      purchasedAt: purchasedAtValue,
+      expiresAt: expiryValue || null,
+      note: note.trim() || null,
     };
 
     if (ingredientId && existingIngredient) {
@@ -109,7 +140,7 @@ export default function IngredientFormScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          removeIngredient(ingredientId);
+          deleteIngredient(ingredientId);
           router.back();
         },
       },
@@ -119,7 +150,7 @@ export default function IngredientFormScreen() {
   return (
     <Screen
       title={existingIngredient ? 'Edit ingredient' : 'Add ingredient'}
-      subtitle="Keep the fields lightweight for the MVP: quantity, unit, category, optional expiry date, and notes.">
+      subtitle="Capture the basics so inventory stays accurate and suggestions stay useful.">
       <SectionCard title="Ingredient details">
         <FormField
           autoCapitalize="words"
@@ -129,20 +160,34 @@ export default function IngredientFormScreen() {
           value={name}
         />
 
+        <ChipSelect
+          label="Category"
+          onChange={setCategory}
+          options={categoryOptions}
+          value={category}
+        />
+        <FormField
+          keyboardType="decimal-pad"
+          label="Quantity"
+          onChangeText={setQuantity}
+          placeholder="1"
+          value={quantity}
+        />
+        <ChipSelect label="Unit" onChange={setUnit} options={unitOptions} value={unit} />
         <View style={styles.inlineFields}>
           <View style={styles.inlineField}>
             <FormField
-              keyboardType="decimal-pad"
-              label="Quantity"
-              onChangeText={setQuantity}
-              placeholder="1"
-              value={quantity}
+              autoCapitalize="none"
+              label="Purchased at"
+              onChangeText={setPurchasedAt}
+              placeholder="YYYY-MM-DD"
+              value={purchasedAt}
             />
           </View>
           <View style={styles.inlineField}>
             <FormField
               autoCapitalize="none"
-              label="Expiry date"
+              label="Expires at"
               onChangeText={setExpiresAt}
               placeholder="YYYY-MM-DD"
               value={expiresAt}
@@ -150,20 +195,12 @@ export default function IngredientFormScreen() {
           </View>
         </View>
 
-        <ChipSelect label="Unit" onChange={setUnit} options={unitOptions} value={unit} />
-        <ChipSelect
-          label="Category"
-          onChange={setCategory}
-          options={categoryOptions}
-          value={category}
-        />
-
         <FormField
-          label="Notes"
+          label="Note"
           multiline
-          onChangeText={setNotes}
+          onChangeText={setNote}
           placeholder="Optional details like brand, location, or prep notes."
-          value={notes}
+          value={note}
         />
       </SectionCard>
 

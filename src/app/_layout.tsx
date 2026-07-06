@@ -29,7 +29,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="index"
             options={{
-              title: 'Meal from Fridge',
+              title: 'วันนี้กินอะไรดี?',
             }}
           />
           <Stack.Screen

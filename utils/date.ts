@@ -26,16 +26,39 @@ export function startOfDay(date = new Date()) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function parseComparableDate(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const dateOnly = parseDateOnly(trimmedValue);
+  if (dateOnly) {
+    return dateOnly;
+  }
+
+  const parsed = new Date(trimmedValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return startOfDay(parsed);
+}
+
 export function isValidDateInput(value: string) {
   return parseDateOnly(value) !== null;
 }
 
-export function formatDate(value?: string) {
+export function formatDate(value?: string | null) {
   if (!value) {
     return 'No date';
   }
 
-  const parsed = parseDateOnly(value);
+  const parsed = parseComparableDate(value);
   if (!parsed) {
     return value;
   }
@@ -47,8 +70,29 @@ export function formatDate(value?: string) {
   }).format(parsed);
 }
 
-export function getDaysUntil(value: string, today = new Date()) {
-  const parsed = parseDateOnly(value);
+function formatDateParts(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+export function getTodayDateInputValue(today = new Date()) {
+  return formatDateParts(startOfDay(today));
+}
+
+export function toDateInputValue(value?: string | null) {
+  const parsed = parseComparableDate(value);
+  if (!parsed) {
+    return '';
+  }
+
+  return formatDateParts(parsed);
+}
+
+export function daysUntilExpiry(expiresAt?: string | null, today = new Date()) {
+  const parsed = parseComparableDate(expiresAt);
   if (!parsed) {
     return Number.NaN;
   }
@@ -56,29 +100,25 @@ export function getDaysUntil(value: string, today = new Date()) {
   return Math.round((parsed.getTime() - startOfDay(today).getTime()) / DAY_IN_MS);
 }
 
-export function isExpired(value?: string) {
-  if (!value) {
-    return false;
-  }
-
-  return getDaysUntil(value) < 0;
+export function getDaysUntil(value: string, today = new Date()) {
+  return daysUntilExpiry(value, today);
 }
 
-export function isExpiringSoon(value?: string, thresholdDays = 3) {
-  if (!value) {
-    return false;
-  }
-
-  const days = getDaysUntil(value);
-  return days >= 0 && days <= thresholdDays;
+export function isExpired(expiresAt?: string | null) {
+  return daysUntilExpiry(expiresAt) < 0;
 }
 
-export function getExpiryLabel(value?: string) {
+export function isExpiringSoon(expiresAt?: string | null, days = 3) {
+  const daysRemaining = daysUntilExpiry(expiresAt);
+  return daysRemaining >= 0 && daysRemaining <= days;
+}
+
+export function getExpiryLabel(value?: string | null) {
   if (!value) {
     return 'No expiry set';
   }
 
-  const days = getDaysUntil(value);
+  const days = daysUntilExpiry(value);
   if (Number.isNaN(days)) {
     return value;
   }
