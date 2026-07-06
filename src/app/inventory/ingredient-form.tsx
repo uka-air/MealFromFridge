@@ -15,7 +15,11 @@ import {
   type IngredientCategory,
   type IngredientUnit,
 } from '@/types/ingredient';
-import { isValidDateInput } from '@/utils/date';
+import {
+  getTodayDateInputValue,
+  isValidDateInput,
+  toDateInputValue,
+} from '@/utils/date';
 
 const unitOptions: SelectOption<IngredientUnit>[] = INGREDIENT_UNITS.map((value) => ({
   label: value.toUpperCase(),
@@ -43,6 +47,7 @@ export default function IngredientFormScreen() {
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState<IngredientUnit>('item');
   const [category, setCategory] = useState<IngredientCategory>('produce');
+  const [purchasedAt, setPurchasedAt] = useState(getTodayDateInputValue());
   const [expiresAt, setExpiresAt] = useState('');
   const [note, setNote] = useState('');
 
@@ -52,6 +57,7 @@ export default function IngredientFormScreen() {
       setQuantity('1');
       setUnit('item');
       setCategory('produce');
+      setPurchasedAt(getTodayDateInputValue());
       setExpiresAt('');
       setNote('');
       return;
@@ -61,7 +67,8 @@ export default function IngredientFormScreen() {
     setQuantity(String(existingIngredient.quantity));
     setUnit(existingIngredient.unit);
     setCategory(existingIngredient.category);
-    setExpiresAt(existingIngredient.expiresAt ?? '');
+    setPurchasedAt(toDateInputValue(existingIngredient.purchasedAt) || getTodayDateInputValue());
+    setExpiresAt(toDateInputValue(existingIngredient.expiresAt));
     setNote(existingIngredient.note ?? '');
   }, [existingIngredient]);
 
@@ -77,9 +84,26 @@ export default function IngredientFormScreen() {
       return;
     }
 
+    const purchasedAtValue = purchasedAt.trim();
+    if (!purchasedAtValue) {
+      Alert.alert('Missing purchase date', 'Please enter when you bought this ingredient.');
+      return;
+    }
+    if (!isValidDateInput(purchasedAtValue)) {
+      Alert.alert('Invalid purchase date', 'Please use the format YYYY-MM-DD for the purchase date.');
+      return;
+    }
+
     const expiryValue = expiresAt.trim();
     if (expiryValue && !isValidDateInput(expiryValue)) {
       Alert.alert('Invalid date', 'Please use the format YYYY-MM-DD for expiry dates.');
+      return;
+    }
+    if (expiryValue && purchasedAtValue > expiryValue) {
+      Alert.alert(
+        'Invalid expiry date',
+        'Expiry date should be the same as or later than the purchase date.'
+      );
       return;
     }
 
@@ -88,6 +112,7 @@ export default function IngredientFormScreen() {
       quantity: parsedQuantity,
       unit,
       category,
+      purchasedAt: purchasedAtValue,
       expiresAt: expiryValue || null,
       note: note.trim() || null,
     };
@@ -125,7 +150,7 @@ export default function IngredientFormScreen() {
   return (
     <Screen
       title={existingIngredient ? 'Edit ingredient' : 'Add ingredient'}
-      subtitle="Keep the fields lightweight for the MVP: quantity, unit, category, optional expiry date, and notes.">
+      subtitle="Capture the basics so inventory stays accurate and suggestions stay useful.">
       <SectionCard title="Ingredient details">
         <FormField
           autoCapitalize="words"
@@ -135,20 +160,34 @@ export default function IngredientFormScreen() {
           value={name}
         />
 
+        <ChipSelect
+          label="Category"
+          onChange={setCategory}
+          options={categoryOptions}
+          value={category}
+        />
+        <FormField
+          keyboardType="decimal-pad"
+          label="Quantity"
+          onChangeText={setQuantity}
+          placeholder="1"
+          value={quantity}
+        />
+        <ChipSelect label="Unit" onChange={setUnit} options={unitOptions} value={unit} />
         <View style={styles.inlineFields}>
           <View style={styles.inlineField}>
             <FormField
-              keyboardType="decimal-pad"
-              label="Quantity"
-              onChangeText={setQuantity}
-              placeholder="1"
-              value={quantity}
+              autoCapitalize="none"
+              label="Purchased at"
+              onChangeText={setPurchasedAt}
+              placeholder="YYYY-MM-DD"
+              value={purchasedAt}
             />
           </View>
           <View style={styles.inlineField}>
             <FormField
               autoCapitalize="none"
-              label="Expiry date"
+              label="Expires at"
               onChangeText={setExpiresAt}
               placeholder="YYYY-MM-DD"
               value={expiresAt}
@@ -156,16 +195,8 @@ export default function IngredientFormScreen() {
           </View>
         </View>
 
-        <ChipSelect label="Unit" onChange={setUnit} options={unitOptions} value={unit} />
-        <ChipSelect
-          label="Category"
-          onChange={setCategory}
-          options={categoryOptions}
-          value={category}
-        />
-
         <FormField
-          label="Notes"
+          label="Note"
           multiline
           onChangeText={setNote}
           placeholder="Optional details like brand, location, or prep notes."
