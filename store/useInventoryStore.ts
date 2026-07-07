@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { createDevelopmentIngredientDrafts } from '@/data';
 import {
   INGREDIENT_CATEGORIES,
   INGREDIENT_UNITS,
@@ -24,6 +25,7 @@ interface InventoryState {
   addIngredient: (draft: IngredientDraft) => Ingredient;
   updateIngredient: (id: string, updates: IngredientUpdate) => Ingredient | null;
   deleteIngredient: (id: string) => void;
+  loadDevelopmentSeedData: () => void;
   getAllIngredients: () => Ingredient[];
   getExpiringIngredients: (days?: number) => Ingredient[];
   getExpiredIngredients: () => Ingredient[];
@@ -51,6 +53,10 @@ function isIngredientCategory(value: string): value is IngredientCategory {
 
 function isIngredientUnit(value: string): value is IngredientUnit {
   return INGREDIENT_UNITS.includes(value as IngredientUnit);
+}
+
+function normalizeName(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function normalizeRequiredName(value: string) {
@@ -131,6 +137,35 @@ function sortIngredients(ingredients: Ingredient[]) {
 
     return left.name.localeCompare(right.name);
   });
+}
+
+function mergeIngredientDraftsByName(
+  ingredients: Ingredient[],
+  drafts: IngredientDraft[]
+) {
+  const nextIngredients = [...ingredients];
+
+  drafts.forEach((draft) => {
+    const normalizedDraft = normalizeIngredientDraft(draft);
+    const existingIndex = nextIngredients.findIndex(
+      (ingredient) => normalizeName(ingredient.name) === normalizeName(normalizedDraft.name)
+    );
+
+    if (existingIndex >= 0) {
+      nextIngredients[existingIndex] = {
+        id: nextIngredients[existingIndex].id,
+        ...normalizedDraft,
+      };
+      return;
+    }
+
+    nextIngredients.push({
+      id: createId('ingredient'),
+      ...normalizedDraft,
+    });
+  });
+
+  return sortIngredients(nextIngredients);
 }
 
 function migrateIngredientRecord(record: unknown): Ingredient | null {
@@ -251,6 +286,13 @@ export const useInventoryStore = create<InventoryState>()(
       deleteIngredient: (id) =>
         set((state) => ({
           ingredients: state.ingredients.filter((ingredient) => ingredient.id !== id),
+        })),
+      loadDevelopmentSeedData: () =>
+        set((state) => ({
+          ingredients: mergeIngredientDraftsByName(
+            state.ingredients,
+            createDevelopmentIngredientDrafts()
+          ),
         })),
       getAllIngredients: () => sortIngredients(get().ingredients),
       getExpiringIngredients: (days = 3) =>

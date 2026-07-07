@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { createSeedRecipeDrafts } from '@/data';
+import { createDevelopmentRecipeDrafts, createSeedRecipeDrafts } from '@/data';
 import { INGREDIENT_UNITS, type IngredientUnit } from '@/types/ingredient';
 import type { Recipe, RecipeDraft, RecipeIngredientRequirement } from '@/types/recipe';
 import { createId } from '@/utils/id';
@@ -18,6 +18,7 @@ interface RecipeState {
   toggleFavoriteRecipe: (id: string) => void;
   removeRecipe: (id: string) => void;
   initializeRecipeSeedData: () => void;
+  loadDevelopmentSeedData: () => void;
   clearRecipes: () => void;
 }
 
@@ -53,6 +54,10 @@ function isIngredientUnit(value: unknown): value is IngredientUnit {
     typeof value === 'string' &&
     INGREDIENT_UNITS.includes(value as IngredientUnit)
   );
+}
+
+function normalizeName(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function normalizeRecipeIngredient(
@@ -155,6 +160,42 @@ function createStoredRecipe(draft: RecipeDraft): Recipe {
   };
 }
 
+function applyRecipeDraftToRecipe(recipe: Recipe, draft: RecipeDraft): Recipe {
+  return {
+    ...recipe,
+    ...draft,
+    isFavorite: draft.isFavorite ?? recipe.isFavorite,
+    ingredients: draft.ingredients.map((ingredient) => ({
+      id: createId('recipe-ingredient'),
+      ...ingredient,
+      matchAnyOf: ingredient.matchAnyOf ? [...ingredient.matchAnyOf] : undefined,
+    })),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function mergeRecipeDraftsByName(recipes: Recipe[], drafts: RecipeDraft[]) {
+  const nextRecipes = [...recipes];
+
+  drafts.forEach((draft) => {
+    const existingIndex = nextRecipes.findIndex(
+      (recipe) => normalizeName(recipe.name) === normalizeName(draft.name)
+    );
+
+    if (existingIndex >= 0) {
+      nextRecipes[existingIndex] = applyRecipeDraftToRecipe(
+        nextRecipes[existingIndex],
+        draft
+      );
+      return;
+    }
+
+    nextRecipes.push(createStoredRecipe(draft));
+  });
+
+  return nextRecipes;
+}
+
 function migratePersistedRecipeState(persistedState: unknown): RecipePersistedState {
   if (!persistedState || typeof persistedState !== 'object') {
     return {
@@ -198,17 +239,7 @@ export const useRecipeStore = create<RecipeState>()(
         set((state) => ({
           recipes: state.recipes.map((recipe) =>
             recipe.id === id
-              ? {
-                  ...recipe,
-                  ...draft,
-                  isFavorite: draft.isFavorite ?? recipe.isFavorite,
-                  ingredients: draft.ingredients.map((ingredient) => ({
-                    id: createId('recipe-ingredient'),
-                    ...ingredient,
-                    matchAnyOf: ingredient.matchAnyOf ? [...ingredient.matchAnyOf] : undefined,
-                  })),
-                  updatedAt: new Date().toISOString(),
-                }
+              ? applyRecipeDraftToRecipe(recipe, draft)
               : recipe
           ),
         })),
@@ -241,6 +272,14 @@ export const useRecipeStore = create<RecipeState>()(
             hasInitializedSeedData: true,
           };
         }),
+      loadDevelopmentSeedData: () =>
+        set((state) => ({
+          recipes: mergeRecipeDraftsByName(
+            state.recipes,
+            createDevelopmentRecipeDrafts()
+          ),
+          hasInitializedSeedData: true,
+        })),
       clearRecipes: () => set({ recipes: [] }),
     }),
     {
