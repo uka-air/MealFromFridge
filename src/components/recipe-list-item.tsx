@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
-import { ToggleChip } from '@/components/toggle-chip';
+import { FavoriteButton } from '@/components/favorite-button';
 import { palette, radius, shadow, spacing } from '@/constants/theme';
 import type { Recipe } from '@/types/recipe';
 
@@ -42,11 +42,6 @@ export function RecipeListItem({
             <Text style={styles.title}>{recipe.name}</Text>
             <Text style={styles.meta}>Cook time: {recipe.cookMinutes} min</Text>
           </View>
-          {recipe.isFavorite ? (
-            <View style={styles.favoriteBadge}>
-              <Text style={styles.favoriteBadgeText}>Favorite</Text>
-            </View>
-          ) : null}
         </View>
 
         <Text style={styles.ingredientsText}>Main ingredients: {getMainIngredients(recipe)}</Text>
@@ -63,12 +58,7 @@ export function RecipeListItem({
       </Pressable>
 
       <View style={styles.actionsRow}>
-        <ToggleChip
-          activeLabel="Favorite"
-          inactiveLabel="Not favorite"
-          onChange={onToggleFavorite}
-          value={recipe.isFavorite}
-        />
+        <FavoriteButton onChange={onToggleFavorite} value={recipe.isFavorite} />
         <AppButton label="Delete" onPress={onDelete} style={styles.deleteButton} variant="danger" />
       </View>
     </View>
@@ -132,17 +122,6 @@ const styles = StyleSheet.create({
   },
   tagLabel: {
     color: palette.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  favoriteBadge: {
-    borderRadius: radius.pill,
-    backgroundColor: palette.accentSoft,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  favoriteBadgeText: {
-    color: palette.accentStrong,
     fontSize: 12,
     fontWeight: '700',
   },

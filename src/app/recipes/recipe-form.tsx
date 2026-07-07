@@ -4,6 +4,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { ChipSelect, type SelectOption } from '@/components/chip-select';
+import { FavoriteButton } from '@/components/favorite-button';
 import { FormField } from '@/components/form-field';
 import { Screen } from '@/components/screen';
 import { SectionCard } from '@/components/section-card';
@@ -237,13 +238,7 @@ export default function RecipeFormScreen() {
           value={tagsText}
         />
         <Text style={styles.helperText}>Separate tags with commas.</Text>
-        <ToggleChip
-          activeLabel="Favorite"
-          inactiveLabel="Not favorite"
-          label="Favorite"
-          onChange={setIsFavorite}
-          value={isFavorite}
-        />
+        <FavoriteButton label="Favorite" onChange={setIsFavorite} value={isFavorite} />
       </SectionCard>
 
       <SectionCard
