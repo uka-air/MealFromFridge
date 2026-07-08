@@ -54,7 +54,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="recipes/paste-recipe"
             options={{
-              title: "วางวิธีทำอาหาร",
+              title: "วางสูตรอาหาร",
             }}
           />
           <Stack.Screen

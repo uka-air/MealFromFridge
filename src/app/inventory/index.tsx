@@ -77,7 +77,7 @@ export default function InventoryScreen() {
 
   return (
     <Screen
-      title="สตอควัตถุดิบ"
+      title="สต็อกวัตถุดิบ"
       subtitle="ติดตามของที่มี ค้นหาได้เร็ว และค้นของที่ต้องใช้ง่ายขึ้น"
     >
       <View style={styles.actionsRow}>

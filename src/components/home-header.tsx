@@ -1,11 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { palette, spacing, typography } from "@/constants/theme";
 import {
   HomeShortcutMenu,
   type HomeShortcutMenuItem,
 } from "@/components/home-shortcut-menu";
+import { palette, spacing, typography } from "@/constants/theme";
 
 interface HomeHeaderProps {
   title: string;
@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
   },
   row: {
-    minHeight: 56,
+    minHeight: 50,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   title: {
     color: palette.text,
     fontSize: typography.title,
-    fontWeight: "800",
+    fontWeight: "700",
     textAlign: "center",
   },
   menuSlot: {

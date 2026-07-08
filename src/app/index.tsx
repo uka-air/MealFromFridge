@@ -4,10 +4,8 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 
 import { AppButton } from "@/components/app-button";
 import { EmptyState } from "@/components/empty-state";
-import {
-  type HomeShortcutMenuItem,
-} from "@/components/home-shortcut-menu";
 import { HomeHeader } from "@/components/home-header";
+import { type HomeShortcutMenuItem } from "@/components/home-shortcut-menu";
 import { RecipeCard } from "@/components/recipe-card";
 import { Screen } from "@/components/screen";
 import { SectionCard } from "@/components/section-card";
@@ -125,7 +123,7 @@ export default function HomeScreen() {
       },
       {
         key: "recipes-add",
-        label: "เพิ่มวิธีทำอาหาร",
+        label: "เพิ่มสูตรอาหาร",
         helper: "สร้างสูตรอาหารใหม่",
         onPress: () => router.push("/recipes/recipe-form"),
       },

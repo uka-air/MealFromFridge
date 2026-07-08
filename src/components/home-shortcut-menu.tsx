@@ -66,7 +66,6 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
             ]}
           >
             <View style={styles.menuCard}>
-              <Text style={styles.menuTitle}>ทางลัด</Text>
               <View style={styles.menuList}>
                 {items.map((item) => (
                   <Pressable

@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import type { ReactNode } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { CookingUndoBanner } from '@/components/cooking-undo-banner';
-import { palette, spacing, typography } from '@/constants/theme';
+import { CookingUndoBanner } from "@/components/cooking-undo-banner";
+import { palette, spacing, typography } from "@/constants/theme";
 
 interface ScreenProps {
   title: string;
@@ -13,11 +13,12 @@ interface ScreenProps {
 
 export function Screen({ title, subtitle, children }: ScreenProps) {
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+    <SafeAreaView edges={["left", "right", "bottom"]} style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+      >
         <CookingUndoBanner />
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
   title: {
     color: palette.text,
     fontSize: typography.title,
-    fontWeight: '800',
+    fontWeight: "700",
   },
   subtitle: {
     color: palette.textMuted,
