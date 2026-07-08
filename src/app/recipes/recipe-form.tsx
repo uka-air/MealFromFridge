@@ -1,18 +1,19 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { Alert, StyleSheet, View } from "react-native";
 
-import { AppButton } from '@/components/app-button';
-import { ChipSelect, type SelectOption } from '@/components/chip-select';
-import { FavoriteButton } from '@/components/favorite-button';
-import { FormField } from '@/components/form-field';
-import { Screen } from '@/components/screen';
-import { SectionCard } from '@/components/section-card';
-import { ToggleChip } from '@/components/toggle-chip';
-import { palette, radius, spacing } from '@/constants/theme';
-import { useRecipeStore } from '@/store/useRecipeStore';
-import { INGREDIENT_UNITS, type IngredientUnit } from '@/types/ingredient';
-import { createId } from '@/utils/id';
+import { AppButton } from "@/components/app-button";
+import { ChipSelect, type SelectOption } from "@/components/chip-select";
+import { FavoriteButton } from "@/components/favorite-button";
+import { FormField } from "@/components/form-field";
+import { Screen } from "@/components/screen";
+import { SectionCard } from "@/components/section-card";
+import { ToggleChip } from "@/components/toggle-chip";
+import { palette, radius, spacing } from "@/constants/theme";
+import { useRecipeImportStore } from "@/store/useRecipeImportStore";
+import { useRecipeStore } from "@/store/useRecipeStore";
+import { INGREDIENT_UNITS, type IngredientUnit } from "@/types/ingredient";
+import { createId } from "@/utils/id";
 
 interface IngredientLine {
   id: string;
@@ -23,85 +24,128 @@ interface IngredientLine {
   matchAnyOf?: string[];
 }
 
-const unitOptions: SelectOption<IngredientUnit>[] = INGREDIENT_UNITS.map((value) => ({
-  label: value.toUpperCase(),
-  value,
-}));
+const unitOptions: SelectOption<IngredientUnit>[] = INGREDIENT_UNITS.map(
+  (value) => ({
+    label: value.toUpperCase(),
+    value,
+  }),
+);
 
 function createIngredientLine(): IngredientLine {
   return {
-    id: createId('draft-ingredient'),
-    name: '',
-    quantity: '',
-    unit: 'item',
+    id: createId("draft-ingredient"),
+    name: "",
+    quantity: "",
+    unit: "item",
     optional: false,
   };
 }
 
 export default function RecipeFormScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
-  const recipeId = typeof params.id === 'string' ? params.id : undefined;
+  const params = useLocalSearchParams<{ id?: string; source?: string }>();
+  const recipeId = typeof params.id === "string" ? params.id : undefined;
+  const importSource = params.source === "paste";
 
   const recipes = useRecipeStore((state) => state.recipes);
   const addRecipe = useRecipeStore((state) => state.addRecipe);
   const updateRecipe = useRecipeStore((state) => state.updateRecipe);
   const removeRecipe = useRecipeStore((state) => state.removeRecipe);
+  const importedRecipe = useRecipeImportStore((state) => state.importedRecipe);
+  const clearImportedRecipe = useRecipeImportStore(
+    (state) => state.clearImportedRecipe,
+  );
 
   const existingRecipe = recipes.find((recipe) => recipe.id === recipeId);
 
-  const [name, setName] = useState('');
-  const [cookMinutes, setCookMinutes] = useState('15');
-  const [tagsText, setTagsText] = useState('');
-  const [stepsText, setStepsText] = useState('');
+  const [name, setName] = useState("");
+  const [cookMinutes, setCookMinutes] = useState("15");
+  const [tagsText, setTagsText] = useState("");
+  const [stepsText, setStepsText] = useState("");
   const [isFavorite, setIsFavorite] = useState(false);
-  const [ingredientLines, setIngredientLines] = useState<IngredientLine[]>([createIngredientLine()]);
+  const [ingredientLines, setIngredientLines] = useState<IngredientLine[]>([
+    createIngredientLine(),
+  ]);
 
   useEffect(() => {
+    if (existingRecipe) {
+      setName(existingRecipe.name);
+      setCookMinutes(String(existingRecipe.cookMinutes));
+      setTagsText(existingRecipe.tags.join(", "));
+      setStepsText(existingRecipe.instructions.join("\n"));
+      setIsFavorite(existingRecipe.isFavorite);
+      setIngredientLines(
+        existingRecipe.ingredients.length
+          ? existingRecipe.ingredients.map((ingredient) => ({
+              id: ingredient.id,
+              name: ingredient.ingredientName,
+              quantity: ingredient.quantity ? String(ingredient.quantity) : "",
+              unit: ingredient.unit ?? "item",
+              optional: !!ingredient.optional,
+              matchAnyOf: ingredient.matchAnyOf
+                ? [...ingredient.matchAnyOf]
+                : undefined,
+            }))
+          : [createIngredientLine()],
+      );
+      return;
+    }
+
+    if (importSource && importedRecipe) {
+      setName(importedRecipe.name);
+      setCookMinutes("15");
+      setTagsText("");
+      setStepsText(importedRecipe.steps.join("\n"));
+      setIsFavorite(false);
+      setIngredientLines(
+        importedRecipe.ingredients.length
+          ? importedRecipe.ingredients.map((ingredient) => ({
+              id: createId("draft-ingredient"),
+              name: ingredient.name,
+              quantity:
+                ingredient.quantity !== undefined
+                  ? String(ingredient.quantity)
+                  : "",
+              unit: ingredient.unit ?? "item",
+              optional: !!ingredient.optional,
+            }))
+          : [createIngredientLine()],
+      );
+      return;
+    }
+
     if (!existingRecipe) {
-      setName('');
-      setCookMinutes('15');
-      setTagsText('');
-      setStepsText('');
+      setName("");
+      setCookMinutes("15");
+      setTagsText("");
+      setStepsText("");
       setIsFavorite(false);
       setIngredientLines([createIngredientLine()]);
       return;
     }
+  }, [existingRecipe, importSource, importedRecipe]);
 
-    setName(existingRecipe.name);
-    setCookMinutes(String(existingRecipe.cookMinutes));
-    setTagsText(existingRecipe.tags.join(', '));
-    setStepsText(existingRecipe.instructions.join('\n'));
-    setIsFavorite(existingRecipe.isFavorite);
-    setIngredientLines(
-      existingRecipe.ingredients.length
-        ? existingRecipe.ingredients.map((ingredient) => ({
-            id: ingredient.id,
-            name: ingredient.ingredientName,
-            quantity: ingredient.quantity ? String(ingredient.quantity) : '',
-            unit: ingredient.unit ?? 'item',
-            optional: !!ingredient.optional,
-            matchAnyOf: ingredient.matchAnyOf ? [...ingredient.matchAnyOf] : undefined,
-          }))
-        : [createIngredientLine()]
-    );
-  }, [existingRecipe]);
-
-  const updateIngredientLine = (id: string, updates: Partial<IngredientLine>) => {
+  const updateIngredientLine = (
+    id: string,
+    updates: Partial<IngredientLine>,
+  ) => {
     setIngredientLines((current) =>
-      current.map((line) => (line.id === id ? { ...line, ...updates } : line))
+      current.map((line) => (line.id === id ? { ...line, ...updates } : line)),
     );
   };
 
   const handleSave = () => {
     if (!name.trim()) {
-      Alert.alert('Missing recipe name', 'Please enter a recipe name.');
+      Alert.alert("ขาดชื่ออาหาร", "กรุณาใส่ชื่ออาหารก่อนบันทึก");
       return;
     }
 
     const parsedCookMinutes = Number(cookMinutes);
     if (!Number.isFinite(parsedCookMinutes) || parsedCookMinutes < 0) {
-      Alert.alert('Invalid cook time', 'Cook time should be a valid number that is zero or more.');
+      Alert.alert(
+        "เวาลาการทำอาหารไม่ถูกต้อง",
+        "เวลาทำอาหารควรเป็นตัวเลขและมากกว่าหรือเท่ากับศูนย์",
+      );
       return;
     }
 
@@ -144,38 +188,44 @@ export default function RecipeFormScreen() {
 
     if (hasInvalidIngredientQuantity) {
       Alert.alert(
-        'Invalid ingredient quantity',
-        'Ingredient quantities should be numbers greater than zero.'
+        "จำนวนวัตถุดิบไม่ถูกต้อง",
+        "จำนวนวัตถุดิบควรเป็นตัวเลขและมากกว่าศูนย์",
       );
       return;
     }
 
     if (!ingredients.length) {
-      Alert.alert('Missing ingredients', 'Add at least one ingredient line for the recipe.');
+      Alert.alert(
+        "ขาดวัตถุดิบ",
+        "เพิ่มบรรทัดวัตถุดิบอย่างน้อยหนึ่งบรรทัดสำหรับสูตรอาหาร",
+      );
       return;
     }
 
     const steps = stepsText
-      .split('\n')
+      .split("\n")
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
     if (!steps.length) {
-      Alert.alert('Missing steps', 'Please add at least one cooking step.');
+      Alert.alert(
+        "ขาดขั้นตอนการทำอาหาร",
+        "กรุณาเพิ่มขั้นตอนการทำอาหารอย่างน้อยหนึ่งขั้นตอน",
+      );
       return;
     }
 
     const draft = {
       name: name.trim(),
       isFavorite,
-      description: existingRecipe?.description ?? '',
+      description: existingRecipe?.description ?? "",
       prepMinutes: existingRecipe?.prepMinutes ?? 0,
       cookMinutes: parsedCookMinutes,
       servings: existingRecipe?.servings ?? 1,
       ingredients,
       instructions: steps,
       tags: tagsText
-        .split(',')
+        .split(",")
         .map((tag) => tag.trim())
         .filter((tag) => tag.length > 0),
       notes: existingRecipe?.notes,
@@ -187,6 +237,10 @@ export default function RecipeFormScreen() {
       addRecipe(draft);
     }
 
+    if (importSource) {
+      clearImportedRecipe();
+    }
+
     router.back();
   };
 
@@ -195,37 +249,42 @@ export default function RecipeFormScreen() {
       return;
     }
 
-    Alert.alert('Delete recipe?', `Remove ${existingRecipe.name} from saved recipes?`, [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          removeRecipe(recipeId);
-          router.back();
+    Alert.alert(
+      "ต้องการลบสูตรอาหาร?",
+      `ลบ ${existingRecipe.name} จากสูตรอาหารที่บันทึก?`,
+      [
+        {
+          text: "ยกเลิก",
+          style: "cancel",
         },
-      },
-    ]);
+        {
+          text: "ลบ",
+          style: "destructive",
+          onPress: () => {
+            removeRecipe(recipeId);
+            router.back();
+          },
+        },
+      ],
+    );
   };
 
   return (
     <Screen
-      title={existingRecipe ? 'Edit recipe' : 'Add recipe'}
-      subtitle="Keep each recipe lightweight but clear enough to save and reuse.">
-      <SectionCard title="Recipe details">
+      title={existingRecipe ? "แก้ไขสูตรอาหาร" : "เพิ่มสูตรอาหาร"}
+      subtitle="ทำให้สั้นและกระชับ แต่ชัดเจนพอที่จะบันทึกและใช้ซ้ำได้"
+    >
+      <SectionCard title="รายละเอียดสูตรอาหาร">
         <FormField
           autoCapitalize="words"
-          label="Recipe name"
+          label="ชื่อสูตรอาหาร"
           onChangeText={setName}
-          placeholder="Thai basil chicken"
+          placeholder="กระเพราไก่"
           value={name}
         />
         <FormField
           keyboardType="number-pad"
-          label="Cook time (minutes)"
+          label="เวลาทำอาหาร (นาที)"
           onChangeText={setCookMinutes}
           placeholder="15"
           value={cookMinutes}
@@ -234,29 +293,33 @@ export default function RecipeFormScreen() {
           autoCapitalize="none"
           label="Tags"
           onChangeText={setTagsText}
-          placeholder="quick, spicy, dinner"
+          placeholder="เผ็ด, อาหารเย็น, ทำง่าย"
           value={tagsText}
         />
-        <Text style={styles.helperText}>Separate tags with commas.</Text>
-        <FavoriteButton label="Favorite" onChange={setIsFavorite} value={isFavorite} />
+        <FavoriteButton
+          label="ถูกใจ"
+          onChange={setIsFavorite}
+          value={isFavorite}
+        />
       </SectionCard>
 
       <SectionCard
-        title="Ingredients"
-        subtitle="Add the main ingredients you need. Optional items will not block suggestions.">
+        title="วัตถุดิบ"
+        subtitle="เพิ่มวัตถุดิบหลักที่คุณต้องการ รายการทางเลือกจะไม่บล็อกการแนะนำ"
+      >
         <View style={styles.listGroup}>
           {ingredientLines.map((line, index) => (
             <View key={line.id} style={styles.embeddedCard}>
               <FormField
                 autoCapitalize="words"
-                label={`Ingredient ${index + 1}`}
+                label={`วัตถุดิบ ${index + 1}`}
                 onChangeText={(value) =>
                   updateIngredientLine(line.id, {
                     name: value,
                     matchAnyOf: undefined,
                   })
                 }
-                placeholder="Chicken breast"
+                placeholder="อกไก่"
                 value={line.name}
               />
 
@@ -264,16 +327,20 @@ export default function RecipeFormScreen() {
                 <View style={styles.inlineField}>
                   <FormField
                     keyboardType="decimal-pad"
-                    label="Quantity"
-                    onChangeText={(value) => updateIngredientLine(line.id, { quantity: value })}
+                    label="ปริมาณ"
+                    onChangeText={(value) =>
+                      updateIngredientLine(line.id, { quantity: value })
+                    }
                     placeholder="1"
                     value={line.quantity}
                   />
                 </View>
                 <View style={styles.inlineField}>
                   <ChipSelect
-                    label="Unit"
-                    onChange={(value) => updateIngredientLine(line.id, { unit: value })}
+                    label="หน่วย"
+                    onChange={(value) =>
+                      updateIngredientLine(line.id, { unit: value })
+                    }
                     options={unitOptions}
                     value={line.unit}
                   />
@@ -281,18 +348,22 @@ export default function RecipeFormScreen() {
               </View>
 
               <ToggleChip
-                activeLabel="Optional"
-                inactiveLabel="Required"
-                label="Ingredient type"
-                onChange={(value) => updateIngredientLine(line.id, { optional: value })}
+                activeLabel="ทางเลือก"
+                inactiveLabel="จำเป็น"
+                label="ประเภทวัตถุดิบ"
+                onChange={(value) =>
+                  updateIngredientLine(line.id, { optional: value })
+                }
                 value={line.optional}
               />
 
               {ingredientLines.length > 1 ? (
                 <AppButton
-                  label="Remove line"
+                  label="ลบวัตถุดิบ"
                   onPress={() =>
-                    setIngredientLines((current) => current.filter((item) => item.id !== line.id))
+                    setIngredientLines((current) =>
+                      current.filter((item) => item.id !== line.id),
+                    )
                   }
                   variant="ghost"
                 />
@@ -302,28 +373,39 @@ export default function RecipeFormScreen() {
         </View>
 
         <AppButton
-          label="Add ingredient line"
-          onPress={() => setIngredientLines((current) => [...current, createIngredientLine()])}
+          label="เพิ่มวัตถุดิบ"
+          onPress={() =>
+            setIngredientLines((current) => [
+              ...current,
+              createIngredientLine(),
+            ])
+          }
           variant="secondary"
         />
       </SectionCard>
 
       <SectionCard
-        title="Steps"
-        subtitle="Write one step per line so the recipe stays easy to scan later.">
+        title="ขั้นตอน"
+        subtitle="เขียนขั้นตอนละหนึ่งบรรทัด เพื่อให้สูตรทำอาหารง่ายต่อการสแกนในภายหลัง"
+      >
         <FormField
-          label="Cooking steps"
+          label="ขั้นตอนการทำอาหาร"
           multiline
           onChangeText={setStepsText}
-          placeholder={'1. Prep the ingredients\n2. Heat the pan\n3. Cook and season'}
+          placeholder={
+            "1. เตรียมวัตถุดิบ\n2. ทำให้กระทะร้อน\n3. ทำให้สุกและปรุงรส"
+          }
           value={stepsText}
         />
       </SectionCard>
 
       <View style={styles.actionsStack}>
-        <AppButton label={existingRecipe ? 'Save changes' : 'Save recipe'} onPress={handleSave} />
+        <AppButton
+          label={existingRecipe ? "บันทึกการเปลี่ยนแปลง" : "บันทึกสูตร"}
+          onPress={handleSave}
+        />
         {existingRecipe ? (
-          <AppButton label="Delete recipe" onPress={handleDelete} variant="danger" />
+          <AppButton label="ลบสูตร" onPress={handleDelete} variant="danger" />
         ) : null}
       </View>
     </Screen>
@@ -332,7 +414,7 @@ export default function RecipeFormScreen() {
 
 const styles = StyleSheet.create({
   inlineFields: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.md,
   },
   inlineField: {

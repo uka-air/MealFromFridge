@@ -1,19 +1,19 @@
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from "expo-router";
+import { useMemo, useState } from "react";
+import { Alert, StyleSheet, Text, View } from "react-native";
 
-import { AppButton } from '@/components/app-button';
-import { ChipSelect, type SelectOption } from '@/components/chip-select';
-import { EmptyState } from '@/components/empty-state';
-import { FormField } from '@/components/form-field';
-import { RecipeListItem } from '@/components/recipe-list-item';
-import { Screen } from '@/components/screen';
-import { SectionCard } from '@/components/section-card';
-import { palette, spacing } from '@/constants/theme';
-import { useRecipeStore } from '@/store/useRecipeStore';
-import type { Recipe } from '@/types/recipe';
+import { AppButton } from "@/components/app-button";
+import { ChipSelect, type SelectOption } from "@/components/chip-select";
+import { EmptyState } from "@/components/empty-state";
+import { FormField } from "@/components/form-field";
+import { RecipeListItem } from "@/components/recipe-list-item";
+import { Screen } from "@/components/screen";
+import { SectionCard } from "@/components/section-card";
+import { palette, spacing } from "@/constants/theme";
+import { useRecipeStore } from "@/store/useRecipeStore";
+import type { Recipe } from "@/types/recipe";
 
-const ALL_TAGS_VALUE = 'all';
+const ALL_TAGS_VALUE = "all";
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
@@ -23,8 +23,10 @@ export default function RecipesScreen() {
   const router = useRouter();
   const recipes = useRecipeStore((state) => state.recipes);
   const removeRecipe = useRecipeStore((state) => state.removeRecipe);
-  const toggleFavoriteRecipe = useRecipeStore((state) => state.toggleFavoriteRecipe);
-  const [searchQuery, setSearchQuery] = useState('');
+  const toggleFavoriteRecipe = useRecipeStore(
+    (state) => state.toggleFavoriteRecipe,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string>(ALL_TAGS_VALUE);
 
   const tagOptions = useMemo<SelectOption<string>[]>(() => {
@@ -34,7 +36,7 @@ export default function RecipesScreen() {
 
     return [
       {
-        label: 'All',
+        label: "All",
         value: ALL_TAGS_VALUE,
       },
       ...tags.map((tag) => ({
@@ -52,7 +54,8 @@ export default function RecipesScreen() {
     return [...recipes]
       .filter((recipe) => {
         const matchesSearch =
-          !normalizedSearchQuery || normalize(recipe.name).includes(normalizedSearchQuery);
+          !normalizedSearchQuery ||
+          normalize(recipe.name).includes(normalizedSearchQuery);
         const matchesTag =
           !normalizedSelectedTag ||
           recipe.tags.some((tag) => normalize(tag) === normalizedSelectedTag);
@@ -69,14 +72,14 @@ export default function RecipesScreen() {
   }, [recipes, searchQuery, selectedTag]);
 
   const handleDelete = (recipe: Recipe) => {
-    Alert.alert('Delete recipe?', `Remove ${recipe.name} from saved recipes?`, [
+    Alert.alert("Delete recipe?", `Remove ${recipe.name} from saved recipes?`, [
       {
-        text: 'Cancel',
-        style: 'cancel',
+        text: "Cancel",
+        style: "cancel",
       },
       {
-        text: 'Delete',
-        style: 'destructive',
+        text: "Delete",
+        style: "destructive",
         onPress: () => removeRecipe(recipe.id),
       },
     ]);
@@ -84,25 +87,32 @@ export default function RecipesScreen() {
 
   return (
     <Screen
-      title="Recipes"
-      subtitle="Browse your saved meals, narrow them down fast, and keep favorites close.">
+      title="สูตรอาหาร"
+      subtitle="สูตรอาหารที่จดไว้ ค้นหาได้อย่างรวดเร็ว และเก็บสูตรโปรดไว้หาง่าย ๆ"
+    >
       <View style={styles.actionsRow}>
-        <AppButton label="Add recipe" onPress={() => router.push('/recipes/recipe-form')} />
         <AppButton
-          label="Open suggestions"
-          onPress={() => router.push('/suggestions')}
+          label="เพิ่มสูตร"
+          onPress={() => router.push("/recipes/recipe-form")}
+        />
+        <AppButton
+          label="วางสูตรอาหาร"
+          onPress={() => router.push("/recipes/paste-recipe")}
+          variant="secondary"
+        />
+        <AppButton
+          label="เมนูแนะนำ"
+          onPress={() => router.push("/suggestions")}
           variant="secondary"
         />
       </View>
 
-      <SectionCard
-        title="Find recipes"
-        subtitle="Search by recipe name and filter by tag.">
+      <SectionCard title="ค้นหาสูตรอาหาร" subtitle="ค้นหาจากชื่อ และ tag">
         <FormField
           autoCapitalize="none"
-          label="Search"
+          label="ค้นหาสูตรอาหาร"
           onChangeText={setSearchQuery}
-          placeholder="Search fried rice, soup, basil..."
+          placeholder="ค้นหารูปแบบ: เมนูผัด, ทำง่าย, อาหารเช้า"
           value={searchQuery}
         />
         <ChipSelect
@@ -112,7 +122,8 @@ export default function RecipesScreen() {
           value={selectedTag}
         />
         <Text style={styles.resultCount}>
-          {filteredRecipes.length} of {recipes.length} recipe{recipes.length === 1 ? '' : 's'}
+          {filteredRecipes.length} of {recipes.length} recipe
+          {recipes.length === 1 ? "" : "s"}
         </Text>
       </SectionCard>
 
@@ -125,7 +136,7 @@ export default function RecipesScreen() {
                 onDelete={() => handleDelete(recipe)}
                 onPress={() =>
                   router.push({
-                    pathname: '/recipes/recipe-form',
+                    pathname: "/recipes/recipe-form",
                     params: { id: recipe.id },
                   })
                 }
@@ -152,7 +163,8 @@ export default function RecipesScreen() {
 
 const styles = StyleSheet.create({
   actionsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   listGroup: {

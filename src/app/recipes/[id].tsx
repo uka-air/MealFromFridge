@@ -1,69 +1,79 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
-import { AppButton } from '@/components/app-button';
-import { EmptyState } from '@/components/empty-state';
-import { Screen } from '@/components/screen';
-import { SectionCard } from '@/components/section-card';
-import { palette, radius, spacing } from '@/constants/theme';
-import { useRecipeStore } from '@/store/useRecipeStore';
+import { AppButton } from "@/components/app-button";
+import { EmptyState } from "@/components/empty-state";
+import { Screen } from "@/components/screen";
+import { SectionCard } from "@/components/section-card";
+import { palette, radius, spacing } from "@/constants/theme";
+import { useRecipeStore } from "@/store/useRecipeStore";
 
 function formatIngredientLine(
   ingredientName: string,
   quantity?: number,
-  unit?: string
+  unit?: string,
 ) {
   if (quantity === undefined) {
     return ingredientName;
   }
 
-  return `${ingredientName} • ${quantity} ${unit ?? 'item'}`;
+  return `${ingredientName} • ${quantity} ${unit ?? "item"}`;
 }
 
 export default function RecipeDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
-  const recipeId = typeof params.id === 'string' ? params.id : undefined;
+  const recipeId = typeof params.id === "string" ? params.id : undefined;
 
   const recipes = useRecipeStore((state) => state.recipes);
   const recipe = recipes.find((item) => item.id === recipeId);
 
   if (!recipe) {
     return (
-      <Screen
-        title="Recipe"
-        subtitle="The recipe could not be found in local storage anymore.">
+      <Screen title="อาหาร" subtitle="ไม่พบอาหารในตอนนี้">
         <EmptyState
-          title="Recipe not found"
-          description="It may have been deleted or changed. Open the recipes list to pick another one."
+          title="ไม่พบอาหาร"
+          description="อาจถูกลบหรือเปลี่ยนแปลงแล้ว โปรดเปิดรายการอาหารเพื่อเลือกอีกครั้ง"
         />
-        <AppButton label="Open recipes" onPress={() => router.push('/recipes')} />
+        <AppButton
+          label="เปิดรายการอาหาร"
+          onPress={() => router.push("/recipes")}
+        />
       </Screen>
     );
   }
 
-  const requiredIngredients = recipe.ingredients.filter((ingredient) => !ingredient.optional);
-  const optionalIngredients = recipe.ingredients.filter((ingredient) => ingredient.optional);
+  const requiredIngredients = recipe.ingredients.filter(
+    (ingredient) => !ingredient.optional,
+  );
+  const optionalIngredients = recipe.ingredients.filter(
+    (ingredient) => ingredient.optional,
+  );
   const totalMinutes = recipe.prepMinutes + recipe.cookMinutes;
 
   return (
     <Screen
       title={recipe.name}
-      subtitle="Review the ingredients and steps, then jump into edit mode if you want to tweak the recipe.">
-      <SectionCard title="Overview">
+      subtitle="ทบทวนวัตถุดิบและขั้นตอน แล้วเปลี่ยนไปที่โหมดแก้ไขหากคุณต้องการปรับปรุงสูตร"
+    >
+      <SectionCard title="ภาพรวม">
         <View style={styles.metaRow}>
           <View style={styles.metaPill}>
-            <Text style={styles.metaPillText}>{totalMinutes} min total</Text>
+            <Text style={styles.metaPillText}>{totalMinutes} นาที </Text>
           </View>
           <View style={styles.metaPill}>
-            <Text style={styles.metaPillText}>{recipe.servings} servings</Text>
+            <Text style={styles.metaPillText}>{recipe.servings} จาน</Text>
           </View>
-          <View style={styles.metaPill}>
-            <Text style={styles.metaPillText}>{recipe.isFavorite ? 'Favorite' : 'Saved recipe'}</Text>
-          </View>
+          {recipe.isFavorite ? (
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>ถูกใจ</Text>
+            </View>
+          ) : null}
         </View>
 
-        {recipe.description ? <Text style={styles.description}>{recipe.description}</Text> : null}
+        {recipe.description ? (
+          <Text style={styles.description}>{recipe.description}</Text>
+        ) : null}
 
         {recipe.tags.length ? (
           <View style={styles.tagRow}>
@@ -76,10 +86,10 @@ export default function RecipeDetailScreen() {
         ) : null}
 
         <AppButton
-          label="Edit recipe"
+          label="แก้ไขวิธีทำอาหาร"
           onPress={() =>
             router.push({
-              pathname: '/recipes/recipe-form',
+              pathname: "/recipes/recipe-form",
               params: { id: recipe.id },
             })
           }
@@ -88,8 +98,9 @@ export default function RecipeDetailScreen() {
       </SectionCard>
 
       <SectionCard
-        title="Required ingredients"
-        subtitle="These are the core ingredients the suggestion engine tries to match first.">
+        title="วัตถุดิบที่จำเป็น"
+        subtitle="นี่คือวัตถุดิบหลักสำหรับการทำอาหารเมนูนี้"
+      >
         <View style={styles.listGroup}>
           {requiredIngredients.map((ingredient) => (
             <View key={ingredient.id} style={styles.ingredientRow}>
@@ -97,7 +108,7 @@ export default function RecipeDetailScreen() {
                 {formatIngredientLine(
                   ingredient.ingredientName,
                   ingredient.quantity,
-                  ingredient.unit
+                  ingredient.unit,
                 )}
               </Text>
             </View>
@@ -107,8 +118,9 @@ export default function RecipeDetailScreen() {
 
       {optionalIngredients.length ? (
         <SectionCard
-          title="Optional ingredients"
-          subtitle="Helpful add-ons that improve the dish but do not block a match.">
+          title="วัตถุดิบที่เสริม"
+          subtitle="สิ่งที่ช่วยเสริมแต่ไม่จำเป็นต้องใส่"
+        >
           <View style={styles.listGroup}>
             {optionalIngredients.map((ingredient) => (
               <View key={ingredient.id} style={styles.ingredientRow}>
@@ -116,7 +128,7 @@ export default function RecipeDetailScreen() {
                   {formatIngredientLine(
                     ingredient.ingredientName,
                     ingredient.quantity,
-                    ingredient.unit
+                    ingredient.unit,
                   )}
                 </Text>
               </View>
@@ -125,7 +137,7 @@ export default function RecipeDetailScreen() {
         </SectionCard>
       ) : null}
 
-      <SectionCard title="Steps" subtitle="Follow the method from top to bottom.">
+      <SectionCard title="ขั้นตอน" subtitle="ทำตามวิธีการจากบนลงล่าง">
         <View style={styles.listGroup}>
           {recipe.instructions.map((instruction, index) => (
             <View key={`${recipe.id}-step-${index + 1}`} style={styles.stepRow}>
@@ -149,8 +161,8 @@ export default function RecipeDetailScreen() {
 
 const styles = StyleSheet.create({
   metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   metaPill: {
@@ -162,7 +174,7 @@ const styles = StyleSheet.create({
   metaPillText: {
     color: palette.textMuted,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   description: {
     color: palette.text,
@@ -170,8 +182,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   tag: {
@@ -183,7 +195,7 @@ const styles = StyleSheet.create({
   tagText: {
     color: palette.accentStrong,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   listGroup: {
     gap: spacing.md,
@@ -201,8 +213,8 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   stepRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: spacing.md,
   },
   stepBadge: {
@@ -210,14 +222,14 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: radius.pill,
     backgroundColor: palette.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
   stepBadgeText: {
     color: palette.surface,
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   stepText: {
     flex: 1,
