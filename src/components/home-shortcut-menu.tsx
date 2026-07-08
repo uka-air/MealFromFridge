@@ -1,14 +1,8 @@
-import { useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useState } from "react";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { palette, radius, shadow, spacing } from '@/constants/theme';
+import { palette, radius, shadow, spacing } from "@/constants/theme";
 
 export interface HomeShortcutMenuItem {
   key: string;
@@ -43,7 +37,8 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
         style={({ pressed }) => [
           styles.triggerButton,
           pressed && styles.triggerButtonPressed,
-        ]}>
+        ]}
+      >
         <View style={styles.triggerIcon}>
           <View style={styles.triggerLine} />
           <View style={styles.triggerLine} />
@@ -55,7 +50,8 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
         animationType="fade"
         onRequestClose={closeMenu}
         transparent
-        visible={isOpen}>
+        visible={isOpen}
+      >
         <View style={styles.modalRoot}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} />
 
@@ -66,7 +62,8 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
               {
                 paddingTop: insets.top + 56,
               },
-            ]}>
+            ]}
+          >
             <View style={styles.menuCard}>
               <Text style={styles.menuTitle}>ทางลัด</Text>
               <View style={styles.menuList}>
@@ -79,13 +76,15 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
                       styles.menuItem,
                       item.isActive && styles.menuItemActive,
                       pressed && styles.menuItemPressed,
-                    ]}>
+                    ]}
+                  >
                     <View style={styles.menuTextGroup}>
                       <Text
                         style={[
                           styles.menuLabel,
                           item.isActive && styles.menuLabelActive,
-                        ]}>
+                        ]}
+                      >
                         {item.label}
                       </Text>
                       {item.helper ? (
@@ -111,8 +110,8 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
 const styles = StyleSheet.create({
   triggerButton: {
     padding: spacing.xs,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   triggerButtonPressed: {
     opacity: 0.72,
@@ -127,17 +126,15 @@ const styles = StyleSheet.create({
   },
   modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(44, 33, 27, 0.16)',
+    backgroundColor: "rgba(44, 33, 27, 0.16)",
   },
   menuPositioner: {
     paddingHorizontal: spacing.lg,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   menuCard: {
     width: 280,
     borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: palette.border,
     backgroundColor: palette.surface,
     padding: spacing.lg,
     gap: spacing.md,
@@ -146,25 +143,22 @@ const styles = StyleSheet.create({
   menuTitle: {
     color: palette.text,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   menuList: {
     gap: spacing.sm,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing.md,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: palette.border,
     backgroundColor: palette.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
   menuItemActive: {
-    borderColor: palette.accent,
     backgroundColor: palette.accentSoft,
   },
   menuItemPressed: {
@@ -177,7 +171,7 @@ const styles = StyleSheet.create({
   menuLabel: {
     color: palette.text,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   menuLabelActive: {
     color: palette.accentStrong,
@@ -196,6 +190,6 @@ const styles = StyleSheet.create({
   activeBadgeLabel: {
     color: palette.accentStrong,
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 });
