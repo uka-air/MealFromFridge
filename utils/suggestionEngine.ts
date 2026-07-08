@@ -1,6 +1,7 @@
 import type { Ingredient } from '@/types/ingredient';
 import type { Recipe, RecipeIngredientRequirement } from '@/types/recipe';
 import { isExpiringSoon } from '@/utils/date';
+import { isIngredientActive } from '@/utils/inventory';
 
 const MATCHED_INGREDIENT_SCORE = 50;
 const EXPIRING_SOON_BONUS = 100;
@@ -205,6 +206,7 @@ function buildSuggestedRecipe(
   recipe: Recipe,
   options: SuggestionOptions
 ): SuggestedRecipe | null {
+  const availableInventory = inventory.filter(isIngredientActive);
   const usedIngredientIndexes = new Set<number>();
   const matchedIngredients: Ingredient[] = [];
   const expiringIngredientsUsed: Ingredient[] = [];
@@ -215,7 +217,7 @@ function buildSuggestedRecipe(
 
   [...requiredIngredients, ...optionalIngredients].forEach((requirement) => {
     const bestMatch = findBestIngredientMatch(
-      inventory,
+      availableInventory,
       requirement,
       usedIngredientIndexes,
       options.preferExpiringSoon

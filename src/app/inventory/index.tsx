@@ -16,6 +16,7 @@ import {
   type Ingredient,
   type IngredientCategory,
 } from "@/types/ingredient";
+import { isIngredientActive } from "@/utils/inventory";
 
 type IngredientCategoryFilter = IngredientCategory | "all";
 
@@ -41,11 +42,15 @@ export default function InventoryScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] =
     useState<IngredientCategoryFilter>("all");
+  const activeIngredients = useMemo(
+    () => ingredients.filter(isIngredientActive),
+    [ingredients],
+  );
 
   const filteredIngredients = useMemo(() => {
     const normalizedSearchQuery = normalize(searchQuery);
 
-    return ingredients.filter((ingredient) => {
+    return activeIngredients.filter((ingredient) => {
       const matchesSearch =
         !normalizedSearchQuery ||
         normalize(ingredient.name).includes(normalizedSearchQuery);
@@ -54,7 +59,7 @@ export default function InventoryScreen() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [categoryFilter, ingredients, searchQuery]);
+  }, [activeIngredients, categoryFilter, searchQuery]);
 
   const handleDelete = (ingredient: Ingredient) => {
     Alert.alert("ลบวัตถุดิบ?", `ลบ ${ingredient.name} จากสตอค?`, [
@@ -105,8 +110,8 @@ export default function InventoryScreen() {
           value={categoryFilter}
         />
         <Text style={styles.resultCount}>
-          {filteredIngredients.length} of {ingredients.length} ingredient
-          {ingredients.length === 1 ? "" : "s"}
+          {filteredIngredients.length} of {activeIngredients.length} ingredient
+          {activeIngredients.length === 1 ? "" : "s"}
         </Text>
         {!!filteredIngredients.length && (
           <Text style={styles.helperText}>
@@ -115,7 +120,7 @@ export default function InventoryScreen() {
         )}
       </SectionCard>
 
-      {ingredients.length ? (
+      {activeIngredients.length ? (
         filteredIngredients.length ? (
           <View style={styles.listGroup}>
             {filteredIngredients.map((ingredient) => (

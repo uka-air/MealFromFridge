@@ -3,32 +3,39 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { createDevelopmentIngredientDrafts } from '@/data';
+import type { IngredientQuantityPatch } from '@/types/cooking';
 import {
   INGREDIENT_CATEGORIES,
+  INGREDIENT_STATUSES,
   INGREDIENT_UNITS,
   type Ingredient,
   type IngredientCategory,
   type IngredientDraft,
+  type IngredientStatus,
   type IngredientUnit,
   type IngredientUpdate,
 } from '@/types/ingredient';
-import { createId } from '@/utils/id';
 import { daysUntilExpiry, isExpired, isExpiringSoon } from '@/utils/date';
+import { createId } from '@/utils/id';
+import { isIngredientActive, isIngredientUsedUp } from '@/utils/inventory';
 
 const INVENTORY_STORAGE_KEY = 'meal-from-fridge-inventory';
-const INVENTORY_STORE_VERSION = 2;
+const INVENTORY_STORE_VERSION = 3;
 const DEFAULT_CATEGORY: IngredientCategory = 'other';
 const DEFAULT_UNIT: IngredientUnit = 'item';
+const DEFAULT_STATUS: IngredientStatus = 'active';
 
 interface InventoryState {
   ingredients: Ingredient[];
   addIngredient: (draft: IngredientDraft) => Ingredient;
   updateIngredient: (id: string, updates: IngredientUpdate) => Ingredient | null;
   deleteIngredient: (id: string) => void;
+  applyIngredientQuantityPatches: (patches: IngredientQuantityPatch[]) => void;
   loadDevelopmentSeedData: () => void;
-  getAllIngredients: () => Ingredient[];
-  getExpiringIngredients: (days?: number) => Ingredient[];
-  getExpiredIngredients: () => Ingredient[];
+  getAllIngredients: (includeUsedUp?: boolean) => Ingredient[];
+  getActiveIngredients: () => Ingredient[];
+  getExpiringIngredients: (days?: number, includeUsedUp?: boolean) => Ingredient[];
+  getExpiredIngredients: (includeUsedUp?: boolean) => Ingredient[];
   clearInventory: () => void;
 }
 
@@ -44,6 +51,7 @@ interface LegacyIngredientRecord {
   expiresAt?: unknown;
   note?: unknown;
   notes?: unknown;
+  status?: unknown;
   createdAt?: unknown;
 }
 
@@ -53,6 +61,10 @@ function isIngredientCategory(value: string): value is IngredientCategory {
 
 function isIngredientUnit(value: string): value is IngredientUnit {
   return INGREDIENT_UNITS.includes(value as IngredientUnit);
+}
+
+function isIngredientStatus(value: string): value is IngredientStatus {
+  return INGREDIENT_STATUSES.includes(value as IngredientStatus);
 }
 
 function normalizeName(value: string) {
@@ -76,6 +88,14 @@ function normalizeQuantity(quantity: number) {
   return quantity;
 }
 
+function normalizeStoredQuantity(quantity: number) {
+  if (!Number.isFinite(quantity) || quantity < 0) {
+    return 0;
+  }
+
+  return quantity;
+}
+
 function normalizeOptionalText(value?: string | null) {
   const trimmedValue = value?.trim();
   return trimmedValue ? trimmedValue : null;
@@ -86,28 +106,40 @@ function normalizePurchasedAt(value?: string) {
   return trimmedValue ? trimmedValue : new Date().toISOString();
 }
 
+function resolveIngredientStatus(quantity: number, status?: IngredientStatus) {
+  if (quantity <= 0) {
+    return 'used_up' as const;
+  }
+
+  return status === 'used_up' ? 'used_up' : DEFAULT_STATUS;
+}
+
 function normalizeIngredientDraft(draft: IngredientDraft): Omit<Ingredient, 'id'> {
+  const quantity = normalizeQuantity(draft.quantity);
+
   return {
     name: normalizeRequiredName(draft.name),
     category: draft.category,
-    quantity: normalizeQuantity(draft.quantity),
+    quantity,
     unit: draft.unit,
     purchasedAt: normalizePurchasedAt(draft.purchasedAt),
     expiresAt: normalizeOptionalText(draft.expiresAt),
     note: normalizeOptionalText(draft.note),
+    status: resolveIngredientStatus(quantity, draft.status),
   };
 }
 
 function applyIngredientUpdates(ingredient: Ingredient, updates: IngredientUpdate): Ingredient {
+  const quantity =
+    updates.quantity === undefined
+      ? ingredient.quantity
+      : normalizeQuantity(updates.quantity);
+
   return {
     id: ingredient.id,
-    name:
-      updates.name === undefined ? ingredient.name : normalizeRequiredName(updates.name),
+    name: updates.name === undefined ? ingredient.name : normalizeRequiredName(updates.name),
     category: updates.category ?? ingredient.category,
-    quantity:
-      updates.quantity === undefined
-        ? ingredient.quantity
-        : normalizeQuantity(updates.quantity),
+    quantity,
     unit: updates.unit ?? ingredient.unit,
     purchasedAt:
       updates.purchasedAt === undefined
@@ -117,20 +149,30 @@ function applyIngredientUpdates(ingredient: Ingredient, updates: IngredientUpdat
       updates.expiresAt === undefined
         ? ingredient.expiresAt
         : normalizeOptionalText(updates.expiresAt),
-    note:
-      updates.note === undefined ? ingredient.note : normalizeOptionalText(updates.note),
+    note: updates.note === undefined ? ingredient.note : normalizeOptionalText(updates.note),
+    status: resolveIngredientStatus(quantity, updates.status ?? ingredient.status),
   };
 }
 
-function getSortPriority(expiresAt: string | null) {
-  const daysRemaining = daysUntilExpiry(expiresAt);
-  return Number.isNaN(daysRemaining) ? Number.POSITIVE_INFINITY : daysRemaining;
+function getSortPriority(ingredient: Ingredient) {
+  if (isIngredientUsedUp(ingredient)) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const daysRemaining = daysUntilExpiry(ingredient.expiresAt);
+  return Number.isNaN(daysRemaining) ? Number.MAX_SAFE_INTEGER - 1 : daysRemaining;
 }
 
 function sortIngredients(ingredients: Ingredient[]) {
   return [...ingredients].sort((left, right) => {
-    const priorityDifference =
-      getSortPriority(left.expiresAt) - getSortPriority(right.expiresAt);
+    const leftIsUsedUp = isIngredientUsedUp(left);
+    const rightIsUsedUp = isIngredientUsedUp(right);
+
+    if (leftIsUsedUp !== rightIsUsedUp) {
+      return leftIsUsedUp ? 1 : -1;
+    }
+
+    const priorityDifference = getSortPriority(left) - getSortPriority(right);
     if (priorityDifference !== 0) {
       return priorityDifference;
     }
@@ -139,10 +181,11 @@ function sortIngredients(ingredients: Ingredient[]) {
   });
 }
 
-function mergeIngredientDraftsByName(
-  ingredients: Ingredient[],
-  drafts: IngredientDraft[]
-) {
+function getVisibleIngredients(ingredients: Ingredient[], includeUsedUp = false) {
+  return includeUsedUp ? ingredients : ingredients.filter(isIngredientActive);
+}
+
+function mergeIngredientDraftsByName(ingredients: Ingredient[], drafts: IngredientDraft[]) {
   const nextIngredients = [...ingredients];
 
   drafts.forEach((draft) => {
@@ -187,10 +230,8 @@ function migrateIngredientRecord(record: unknown): Ingredient | null {
   }
 
   const quantity =
-    typeof legacyIngredient.quantity === 'number' &&
-    Number.isFinite(legacyIngredient.quantity) &&
-    legacyIngredient.quantity > 0
-      ? legacyIngredient.quantity
+    typeof legacyIngredient.quantity === 'number'
+      ? normalizeStoredQuantity(legacyIngredient.quantity)
       : 1;
 
   const category =
@@ -218,6 +259,11 @@ function migrateIngredientRecord(record: unknown): Ingredient | null {
         ? legacyIngredient.notes
         : null;
 
+  const status =
+    typeof legacyIngredient.status === 'string' && isIngredientStatus(legacyIngredient.status)
+      ? legacyIngredient.status
+      : undefined;
+
   return {
     id: legacyIngredient.id,
     name,
@@ -230,6 +276,7 @@ function migrateIngredientRecord(record: unknown): Ingredient | null {
         ? normalizeOptionalText(legacyIngredient.expiresAt)
         : null,
     note: normalizeOptionalText(note),
+    status: resolveIngredientStatus(quantity, status),
   };
 }
 
@@ -287,6 +334,31 @@ export const useInventoryStore = create<InventoryState>()(
         set((state) => ({
           ingredients: state.ingredients.filter((ingredient) => ingredient.id !== id),
         })),
+      applyIngredientQuantityPatches: (patches) => {
+        if (!patches.length) {
+          return;
+        }
+
+        const patchMap = new Map(patches.map((patch) => [patch.id, patch]));
+
+        set((state) => ({
+          ingredients: sortIngredients(
+            state.ingredients.map((ingredient) => {
+              const patch = patchMap.get(ingredient.id);
+              if (!patch) {
+                return ingredient;
+              }
+
+              const quantity = normalizeStoredQuantity(patch.quantity);
+              return {
+                ...ingredient,
+                quantity,
+                status: resolveIngredientStatus(quantity, patch.status),
+              };
+            })
+          ),
+        }));
+      },
       loadDevelopmentSeedData: () =>
         set((state) => ({
           ingredients: mergeIngredientDraftsByName(
@@ -294,16 +366,21 @@ export const useInventoryStore = create<InventoryState>()(
             createDevelopmentIngredientDrafts()
           ),
         })),
-      getAllIngredients: () => sortIngredients(get().ingredients),
-      getExpiringIngredients: (days = 3) =>
+      getAllIngredients: (includeUsedUp = false) =>
+        sortIngredients(getVisibleIngredients(get().ingredients, includeUsedUp)),
+      getActiveIngredients: () =>
+        sortIngredients(get().ingredients.filter(isIngredientActive)),
+      getExpiringIngredients: (days = 3, includeUsedUp = false) =>
         sortIngredients(
-          get().ingredients.filter((ingredient) =>
+          getVisibleIngredients(get().ingredients, includeUsedUp).filter((ingredient) =>
             isExpiringSoon(ingredient.expiresAt, days)
           )
         ),
-      getExpiredIngredients: () =>
+      getExpiredIngredients: (includeUsedUp = false) =>
         sortIngredients(
-          get().ingredients.filter((ingredient) => isExpired(ingredient.expiresAt))
+          getVisibleIngredients(get().ingredients, includeUsedUp).filter((ingredient) =>
+            isExpired(ingredient.expiresAt)
+          )
         ),
       clearInventory: () => set({ ingredients: [] }),
     }),

@@ -36,7 +36,7 @@ export default function RootLayout() {
           <Stack.Screen
             name="inventory/index"
             options={{
-              title: "สตอควัตถุดิบ",
+              title: "สต็อกวัตถุดิบ",
             }}
           />
           <Stack.Screen
@@ -64,9 +64,15 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="recipes/cook-confirmation"
+            options={{
+              title: "ทำเมนูนี้",
+            }}
+          />
+          <Stack.Screen
             name="recipes/recipe-form"
             options={{
-              title: "ฟอร์มอาหาร",
+              title: "เมนูอาหาร",
             }}
           />
           <Stack.Screen

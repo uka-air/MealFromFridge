@@ -23,8 +23,11 @@ export const INGREDIENT_UNITS = [
   'pack',
 ] as const;
 
+export const INGREDIENT_STATUSES = ['active', 'used_up'] as const;
+
 export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number];
 export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
+export type IngredientStatus = (typeof INGREDIENT_STATUSES)[number];
 
 export interface Ingredient {
   id: string;
@@ -35,6 +38,7 @@ export interface Ingredient {
   purchasedAt: string;
   expiresAt: string | null;
   note: string | null;
+  status?: IngredientStatus;
 }
 
 export interface IngredientDraft {
@@ -45,6 +49,7 @@ export interface IngredientDraft {
   purchasedAt?: string;
   expiresAt?: string | null;
   note?: string | null;
+  status?: IngredientStatus;
 }
 
 export type IngredientUpdate = Partial<IngredientDraft>;

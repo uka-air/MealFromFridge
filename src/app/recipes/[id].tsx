@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { AppButton } from "@/components/app-button";
@@ -6,7 +7,10 @@ import { EmptyState } from "@/components/empty-state";
 import { Screen } from "@/components/screen";
 import { SectionCard } from "@/components/section-card";
 import { palette, radius, spacing } from "@/constants/theme";
+import { useInventoryStore } from "@/store/useInventoryStore";
 import { useRecipeStore } from "@/store/useRecipeStore";
+import { isIngredientActive } from "@/utils/inventory";
+import { calculateRecipeDeduction } from "@/utils/recipe-deduction";
 
 function formatIngredientLine(
   ingredientName: string,
@@ -25,8 +29,17 @@ export default function RecipeDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const recipeId = typeof params.id === "string" ? params.id : undefined;
 
+  const inventoryIngredients = useInventoryStore((state) => state.ingredients);
   const recipes = useRecipeStore((state) => state.recipes);
   const recipe = recipes.find((item) => item.id === recipeId);
+  const activeInventory = useMemo(
+    () => inventoryIngredients.filter(isIngredientActive),
+    [inventoryIngredients],
+  );
+  const deductionPlan = useMemo(
+    () => (recipe ? calculateRecipeDeduction(recipe, activeInventory) : null),
+    [activeInventory, recipe],
+  );
 
   if (!recipe) {
     return (
@@ -95,6 +108,30 @@ export default function RecipeDetailScreen() {
           }
           variant="secondary"
         />
+        <View style={styles.actionRow}>
+          <AppButton
+            disabled={deductionPlan?.allRequiredIngredientsMissing ?? true}
+            label="ทำเมนูนี้"
+            onPress={() =>
+              router.push({
+                pathname: "/recipes/cook-confirmation",
+                params: { id: recipe.id },
+              })
+            }
+            style={styles.actionButton}
+          />
+        </View>
+        {deductionPlan?.allRequiredIngredientsMissing ? (
+          <Text style={styles.warningText}>ยังไม่มีวัตถุดิบพอทำเมนูนี้</Text>
+        ) : null}
+        {deductionPlan?.missingIngredients.length ? (
+          <Text style={styles.metaHint}>
+            ยังขาด:{" "}
+            {deductionPlan.missingIngredients
+              .map((ingredient) => ingredient.recipeIngredientName)
+              .join(", ")}
+          </Text>
+        ) : null}
       </SectionCard>
 
       <SectionCard
@@ -241,5 +278,22 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 15,
     lineHeight: 22,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  warningText: {
+    color: palette.danger,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  metaHint: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

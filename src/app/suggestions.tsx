@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AppButton } from '@/components/app-button';
 import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { SectionCard } from '@/components/section-card';
@@ -9,6 +10,8 @@ import { palette, radius, shadow, spacing } from '@/constants/theme';
 import { useInventoryStore } from '@/store/useInventoryStore';
 import { useRecipeStore } from '@/store/useRecipeStore';
 import type { RecipeSuggestion } from '@/utils/suggestionEngine';
+import { isIngredientActive } from '@/utils/inventory';
+import { calculateRecipeDeduction } from '@/utils/recipe-deduction';
 import { buildRecipeSuggestions } from '@/utils/suggestionEngine';
 
 type SuggestionFilterKey =
@@ -95,10 +98,14 @@ function SuggestionFilterChip({
 
 function SuggestionCard({
   suggestion,
-  onPress,
+  canCook,
+  onCook,
+  onViewRecipe,
 }: {
   suggestion: RecipeSuggestion;
-  onPress: () => void;
+  canCook: boolean;
+  onCook: () => void;
+  onViewRecipe: () => void;
 }) {
   const matchedIngredientNames = suggestion.matchedIngredients.map((ingredient) => ingredient.name);
   const missingIngredientNames = suggestion.missingIngredients.map(
@@ -109,52 +116,69 @@ function SuggestionCard({
   );
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardTitleBlock}>
-          <Text style={styles.cardTitle}>{suggestion.recipe.name}</Text>
-          <Text style={styles.cardMeta}>{suggestion.recipe.cookMinutes} นาที • {suggestion.recipe.ingredients.length} วัตถุดิบ</Text>
+    <View style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onViewRecipe}
+        style={({ pressed }) => [styles.cardContent, pressed && styles.cardPressed]}>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardTitleBlock}>
+            <Text style={styles.cardTitle}>{suggestion.recipe.name}</Text>
+            <Text style={styles.cardMeta}>
+              {suggestion.recipe.cookMinutes} นาที • {suggestion.recipe.ingredients.length} วัตถุดิบ
+            </Text>
+          </View>
+          <View style={styles.scoreBadge}>
+            <Text style={styles.scoreLabel}>คะแนน</Text>
+            <Text style={styles.scoreValue}>{suggestion.score}</Text>
+          </View>
         </View>
-        <View style={styles.scoreBadge}>
-          <Text style={styles.scoreLabel}>คะแนน</Text>
-          <Text style={styles.scoreValue}>{suggestion.score}</Text>
-        </View>
-      </View>
 
-      <View style={styles.detailsGroup}>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>ตรงวัตถุดิบ</Text>
-          <Text style={styles.detailValue}>
-            {formatIngredientList(matchedIngredientNames, 'ยังไม่มีวัตถุดิบที่ตรง')}
-          </Text>
+        <View style={styles.detailsGroup}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>ตรงวัตถุดิบ</Text>
+            <Text style={styles.detailValue}>
+              {formatIngredientList(matchedIngredientNames, 'ยังไม่มีวัตถุดิบที่ตรง')}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>ยังขาด</Text>
+            <Text style={styles.detailValue}>
+              {formatIngredientList(missingIngredientNames, 'ไม่ขาดวัตถุดิบ')}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>ใช้ของใกล้เสีย</Text>
+            <Text style={styles.detailValue}>
+              {formatIngredientList(expiringIngredientNames, 'ยังไม่ได้ใช้วัตถุดิบใกล้เสีย')}
+            </Text>
+          </View>
         </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>ยังขาด</Text>
-          <Text style={styles.detailValue}>
-            {formatIngredientList(missingIngredientNames, 'ไม่ขาดวัตถุดิบ')}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>ใช้ของใกล้เสีย</Text>
-          <Text style={styles.detailValue}>
-            {formatIngredientList(expiringIngredientNames, 'ยังไม่ได้ใช้วัตถุดิบใกล้เสีย')}
-          </Text>
-        </View>
-      </View>
 
-      {suggestion.recipe.tags.length ? (
-        <View style={styles.tagRow}>
-          {suggestion.recipe.tags.map((tag) => (
-            <View key={tag} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
+        {suggestion.recipe.tags.length ? (
+          <View style={styles.tagRow}>
+            {suggestion.recipe.tags.map((tag) => (
+              <View key={tag} style={styles.tag}>
+                <Text style={styles.tagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </Pressable>
+
+      <View style={styles.cardActions}>
+        <AppButton label="ดูสูตร" onPress={onViewRecipe} variant="secondary" />
+        <AppButton
+          disabled={!canCook}
+          label="ทำเมนูนี้"
+          onPress={onCook}
+          style={styles.cardActionButton}
+        />
+      </View>
+      {!canCook ? (
+        <Text style={styles.cardWarning}>ยังไม่มีวัตถุดิบพอทำเมนูนี้</Text>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
@@ -163,6 +187,10 @@ export default function SuggestionsScreen() {
   const ingredients = useInventoryStore((state) => state.ingredients);
   const recipes = useRecipeStore((state) => state.recipes);
   const [activeFilters, setActiveFilters] = useState<SuggestionFilterKey[]>([]);
+  const activeIngredients = useMemo(
+    () => ingredients.filter(isIngredientActive),
+    [ingredients]
+  );
 
   const selectedTagBoosts = useMemo(
     () => getSelectedTagBoosts(activeFilters),
@@ -170,7 +198,7 @@ export default function SuggestionsScreen() {
   );
 
   const suggestions = useMemo(() => {
-    const rankedSuggestions = buildRecipeSuggestions(ingredients, recipes, {
+    const rankedSuggestions = buildRecipeSuggestions(activeIngredients, recipes, {
       preferExpiringSoon: true,
       maxMissingIngredients: activeFilters.includes('readyNow')
         ? 0
@@ -212,7 +240,17 @@ export default function SuggestionsScreen() {
 
         return true;
       });
-  }, [activeFilters, ingredients, recipes, selectedTagBoosts]);
+  }, [activeFilters, activeIngredients, recipes, selectedTagBoosts]);
+  const suggestionPlans = useMemo(
+    () =>
+      Object.fromEntries(
+        suggestions.map((suggestion) => [
+          suggestion.recipe.id,
+          calculateRecipeDeduction(suggestion.recipe, activeIngredients),
+        ])
+      ),
+    [activeIngredients, suggestions]
+  );
 
   const handleToggleFilter = (filterKey: SuggestionFilterKey) => {
     setActiveFilters((current) =>
@@ -222,7 +260,7 @@ export default function SuggestionsScreen() {
     );
   };
 
-  if (!recipes.length || !ingredients.length) {
+  if (!recipes.length || !activeIngredients.length) {
     return (
       <Screen
         title="เมนูแนะนำ"
@@ -261,8 +299,17 @@ export default function SuggestionsScreen() {
         <View style={styles.listGroup}>
           {suggestions.map((suggestion) => (
             <SuggestionCard
+              canCook={
+                !(suggestionPlans[suggestion.recipe.id]?.allRequiredIngredientsMissing ?? true)
+              }
               key={suggestion.recipe.id}
-              onPress={() =>
+              onCook={() =>
+                router.push({
+                  pathname: '/recipes/cook-confirmation',
+                  params: { id: suggestion.recipe.id },
+                })
+              }
+              onViewRecipe={() =>
                 router.push({
                   pathname: '/recipes/[id]',
                   params: { id: suggestion.recipe.id },
@@ -326,6 +373,9 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     opacity: 0.92,
+  },
+  cardContent: {
+    gap: spacing.md,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -395,6 +445,18 @@ const styles = StyleSheet.create({
   tagText: {
     color: palette.textMuted,
     fontSize: 12,
+    fontWeight: '700',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  cardActionButton: {
+    flex: 1,
+  },
+  cardWarning: {
+    color: palette.danger,
+    fontSize: 13,
     fontWeight: '700',
   },
 });

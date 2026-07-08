@@ -16,6 +16,8 @@ import { palette, spacing } from "@/constants/theme";
 import { useInventoryStore } from "@/store/useInventoryStore";
 import { useRecipeStore } from "@/store/useRecipeStore";
 import { formatDate, isExpired, isExpiringSoon } from "@/utils/date";
+import { isIngredientActive } from "@/utils/inventory";
+import { calculateRecipeDeduction } from "@/utils/recipe-deduction";
 import { buildRecipeSuggestions } from "@/utils/suggestionEngine";
 
 type SuggestionMode = "expiring" | "easy";
@@ -42,33 +44,47 @@ export default function HomeScreen() {
   );
   const [suggestionMode, setSuggestionMode] =
     useState<SuggestionMode>("expiring");
-
-  const expiringSoonItems = useMemo(
-    () => ingredients.filter((item) => isExpiringSoon(item.expiresAt, 3)),
+  const activeIngredients = useMemo(
+    () => ingredients.filter(isIngredientActive),
     [ingredients],
   );
+
+  const expiringSoonItems = useMemo(
+    () => activeIngredients.filter((item) => isExpiringSoon(item.expiresAt, 3)),
+    [activeIngredients],
+  );
   const expiredItems = useMemo(
-    () => ingredients.filter((item) => isExpired(item.expiresAt)),
-    [ingredients],
+    () => activeIngredients.filter((item) => isExpired(item.expiresAt)),
+    [activeIngredients],
   );
   const favoriteRecipesCount = useMemo(
     () => recipes.filter((recipe) => recipe.isFavorite).length,
     [recipes],
   );
   const topSuggestions = useMemo(() => {
-    if (!ingredients.length || !recipes.length) {
+    if (!activeIngredients.length || !recipes.length) {
       return [];
     }
 
     const selectedTags =
       suggestionMode === "easy" ? EASY_RECIPE_TAGS : undefined;
 
-    return buildRecipeSuggestions(ingredients, recipes, {
+    return buildRecipeSuggestions(activeIngredients, recipes, {
       preferExpiringSoon: suggestionMode === "expiring",
       maxMissingIngredients: 3,
       selectedTags,
     }).slice(0, 3);
-  }, [ingredients, recipes, suggestionMode]);
+  }, [activeIngredients, recipes, suggestionMode]);
+  const topSuggestionPlans = useMemo(
+    () =>
+      Object.fromEntries(
+        topSuggestions.map((suggestion) => [
+          suggestion.recipe.id,
+          calculateRecipeDeduction(suggestion.recipe, activeIngredients),
+        ]),
+      ),
+    [activeIngredients, topSuggestions],
+  );
   const highlightedExpiringItems = useMemo(
     () => expiringSoonItems.slice(0, 4),
     [expiringSoonItems],
@@ -153,7 +169,7 @@ export default function HomeScreen() {
           <StatCard
             helper="วัตถุดิบที่บันทึกไว้"
             label="วัตถุดิบทั้งหมด"
-            value={String(ingredients.length)}
+            value={String(activeIngredients.length)}
           />
           <StatCard
             helper="ควรใช้ก่อนใน 3 วัน"
@@ -205,13 +221,39 @@ export default function HomeScreen() {
                           มีวัตถุดิบพร้อมทำแล้ว
                         </Text>
                       )}
+                      <View style={styles.recipeActionRow}>
+                        <AppButton
+                          label="ดูสูตร"
+                          onPress={() =>
+                            router.push({
+                              pathname: "/recipes/[id]",
+                              params: { id: suggestion.recipe.id },
+                            })
+                          }
+                          variant="secondary"
+                        />
+                        <AppButton
+                          disabled={
+                            topSuggestionPlans[suggestion.recipe.id]
+                              ?.allRequiredIngredientsMissing ?? true
+                          }
+                          label="ทำเมนูนี้"
+                          onPress={() =>
+                            router.push({
+                              pathname: "/recipes/cook-confirmation",
+                              params: { id: suggestion.recipe.id },
+                            })
+                          }
+                          style={styles.recipeActionButton}
+                        />
+                      </View>
+                      {topSuggestionPlans[suggestion.recipe.id]
+                        ?.allRequiredIngredientsMissing ? (
+                        <Text style={styles.recipeWarning}>
+                          ยังไม่มีวัตถุดิบพอทำเมนูนี้
+                        </Text>
+                      ) : null}
                     </View>
-                  }
-                  onPress={() =>
-                    router.push({
-                      pathname: "/recipes/[id]",
-                      params: { id: suggestion.recipe.id },
-                    })
                   }
                   recipe={suggestion.recipe}
                 />
@@ -280,6 +322,14 @@ const styles = StyleSheet.create({
   recipeSummary: {
     gap: spacing.xs,
   },
+  recipeActionRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  recipeActionButton: {
+    flex: 1,
+  },
   previewRow: {
     borderRadius: 14,
     backgroundColor: palette.surfaceMuted,
@@ -317,5 +367,10 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 13,
     lineHeight: 18,
+  },
+  recipeWarning: {
+    color: palette.danger,
+    fontSize: 13,
+    fontWeight: "700",
   },
 });
