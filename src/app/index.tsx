@@ -141,9 +141,12 @@ export default function HomeScreen() {
 
   return (
     <>
-      <Stack.Header asChild>
-        <HomeHeader menuItems={shortcutMenuItems} title="Meal From Fridge" />
-      </Stack.Header>
+      <Stack.Screen
+        options={{
+          headerShown: false,
+        }}
+      />
+      <HomeHeader menuItems={shortcutMenuItems} title="Meal From Fridge" />
 
       <Screen
         title="วันนี้กินอะไรดี?"
@@ -171,6 +174,11 @@ export default function HomeScreen() {
             value={String(favoriteRecipesCount)}
           />
         </View>
+
+        <AppButton
+          label="สแกนบาร์โค้ด"
+          onPress={() => router.push('/inventory/barcode-scanner')}
+        />
 
         <SectionCard
           title="เมนูแนะนำ 3 อันดับแรก"

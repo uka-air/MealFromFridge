@@ -9,6 +9,7 @@ import {
   type Ingredient,
   type IngredientCategory,
   type IngredientDraft,
+  type IngredientSource,
   type IngredientUnit,
   type IngredientUpdate,
 } from '@/types/ingredient';
@@ -16,9 +17,10 @@ import { createId } from '@/utils/id';
 import { daysUntilExpiry, isExpired, isExpiringSoon } from '@/utils/date';
 
 const INVENTORY_STORAGE_KEY = 'meal-from-fridge-inventory';
-const INVENTORY_STORE_VERSION = 2;
+const INVENTORY_STORE_VERSION = 3;
 const DEFAULT_CATEGORY: IngredientCategory = 'other';
 const DEFAULT_UNIT: IngredientUnit = 'item';
+const DEFAULT_SOURCE: IngredientSource = 'manual';
 
 interface InventoryState {
   ingredients: Ingredient[];
@@ -45,6 +47,9 @@ interface LegacyIngredientRecord {
   note?: unknown;
   notes?: unknown;
   createdAt?: unknown;
+  barcode?: unknown;
+  brand?: unknown;
+  source?: unknown;
 }
 
 function isIngredientCategory(value: string): value is IngredientCategory {
@@ -53,6 +58,10 @@ function isIngredientCategory(value: string): value is IngredientCategory {
 
 function isIngredientUnit(value: string): value is IngredientUnit {
   return INGREDIENT_UNITS.includes(value as IngredientUnit);
+}
+
+function isIngredientSource(value: string): value is IngredientSource {
+  return value === 'manual' || value === 'barcode';
 }
 
 function normalizeName(value: string) {
@@ -81,6 +90,11 @@ function normalizeOptionalText(value?: string | null) {
   return trimmedValue ? trimmedValue : null;
 }
 
+function normalizeOptionalString(value?: string | null) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
 function normalizePurchasedAt(value?: string) {
   const trimmedValue = value?.trim();
   return trimmedValue ? trimmedValue : new Date().toISOString();
@@ -95,6 +109,9 @@ function normalizeIngredientDraft(draft: IngredientDraft): Omit<Ingredient, 'id'
     purchasedAt: normalizePurchasedAt(draft.purchasedAt),
     expiresAt: normalizeOptionalText(draft.expiresAt),
     note: normalizeOptionalText(draft.note),
+    barcode: normalizeOptionalString(draft.barcode),
+    brand: normalizeOptionalString(draft.brand),
+    source: draft.source ?? DEFAULT_SOURCE,
   };
 }
 
@@ -119,6 +136,13 @@ function applyIngredientUpdates(ingredient: Ingredient, updates: IngredientUpdat
         : normalizeOptionalText(updates.expiresAt),
     note:
       updates.note === undefined ? ingredient.note : normalizeOptionalText(updates.note),
+    barcode:
+      updates.barcode === undefined
+        ? ingredient.barcode
+        : normalizeOptionalString(updates.barcode),
+    brand:
+      updates.brand === undefined ? ingredient.brand : normalizeOptionalString(updates.brand),
+    source: updates.source ?? ingredient.source ?? DEFAULT_SOURCE,
   };
 }
 
@@ -230,6 +254,18 @@ function migrateIngredientRecord(record: unknown): Ingredient | null {
         ? normalizeOptionalText(legacyIngredient.expiresAt)
         : null,
     note: normalizeOptionalText(note),
+    barcode:
+      typeof legacyIngredient.barcode === 'string'
+        ? normalizeOptionalString(legacyIngredient.barcode)
+        : undefined,
+    brand:
+      typeof legacyIngredient.brand === 'string'
+        ? normalizeOptionalString(legacyIngredient.brand)
+        : undefined,
+    source:
+      typeof legacyIngredient.source === 'string' && isIngredientSource(legacyIngredient.source)
+        ? legacyIngredient.source
+        : DEFAULT_SOURCE,
   };
 }
 

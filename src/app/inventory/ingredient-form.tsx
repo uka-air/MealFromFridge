@@ -1,21 +1,23 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { ChipSelect, type SelectOption } from '@/components/chip-select';
 import { FormField } from '@/components/form-field';
 import { Screen } from '@/components/screen';
 import { SectionCard } from '@/components/section-card';
-import { spacing } from '@/constants/theme';
+import { palette, spacing } from '@/constants/theme';
 import { useInventoryStore } from '@/store/useInventoryStore';
 import {
   INGREDIENT_CATEGORIES,
   INGREDIENT_UNITS,
   type IngredientCategory,
+  type IngredientSource,
   type IngredientUnit,
 } from '@/types/ingredient';
 import {
+  addDaysToDateInputValue,
   getTodayDateInputValue,
   isValidDateInput,
   toDateInputValue,
@@ -31,10 +33,47 @@ const categoryOptions: SelectOption<IngredientCategory>[] = INGREDIENT_CATEGORIE
   value,
 }));
 
+function isIngredientCategory(value: string): value is IngredientCategory {
+  return INGREDIENT_CATEGORIES.includes(value as IngredientCategory);
+}
+
+function isIngredientUnit(value: string): value is IngredientUnit {
+  return INGREDIENT_UNITS.includes(value as IngredientUnit);
+}
+
 export default function IngredientFormScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    barcode?: string;
+    productName?: string;
+    productCategory?: string;
+    productUnit?: string;
+    productBrand?: string;
+    productShelfLifeDays?: string;
+    source?: string;
+  }>();
   const ingredientId = typeof params.id === 'string' ? params.id : undefined;
+  const scannedBarcode = typeof params.barcode === 'string' ? params.barcode : '';
+  const scannedProductName =
+    typeof params.productName === 'string' ? params.productName : '';
+  const scannedProductBrand =
+    typeof params.productBrand === 'string' ? params.productBrand : '';
+  const scannedSource: IngredientSource =
+    params.source === 'barcode' || !!scannedBarcode ? 'barcode' : 'manual';
+  const scannedCategory =
+    typeof params.productCategory === 'string' &&
+    isIngredientCategory(params.productCategory)
+      ? params.productCategory
+      : undefined;
+  const scannedUnit =
+    typeof params.productUnit === 'string' && isIngredientUnit(params.productUnit)
+      ? params.productUnit
+      : undefined;
+  const scannedShelfLifeDays =
+    typeof params.productShelfLifeDays === 'string'
+      ? Number(params.productShelfLifeDays)
+      : Number.NaN;
 
   const ingredients = useInventoryStore((state) => state.ingredients);
   const addIngredient = useInventoryStore((state) => state.addIngredient);
@@ -50,16 +89,32 @@ export default function IngredientFormScreen() {
   const [purchasedAt, setPurchasedAt] = useState(getTodayDateInputValue());
   const [expiresAt, setExpiresAt] = useState('');
   const [note, setNote] = useState('');
+  const [barcode, setBarcode] = useState('');
+  const [brand, setBrand] = useState('');
+  const [source, setSource] = useState<IngredientSource>('manual');
 
   useEffect(() => {
     if (!existingIngredient) {
+      const suggestedExpiry =
+        Number.isFinite(scannedShelfLifeDays) && scannedShelfLifeDays >= 0
+          ? addDaysToDateInputValue(scannedShelfLifeDays)
+          : '';
+
       setName('');
       setQuantity('1');
-      setUnit('item');
-      setCategory('produce');
+      setUnit(scannedUnit ?? 'item');
+      setCategory(scannedCategory ?? 'other');
       setPurchasedAt(getTodayDateInputValue());
-      setExpiresAt('');
+      setExpiresAt(suggestedExpiry);
       setNote('');
+      setBarcode(scannedBarcode);
+      setBrand(scannedProductBrand);
+      setSource(scannedSource);
+
+      if (scannedProductName) {
+        setName(scannedProductName);
+      }
+
       return;
     }
 
@@ -70,7 +125,19 @@ export default function IngredientFormScreen() {
     setPurchasedAt(toDateInputValue(existingIngredient.purchasedAt) || getTodayDateInputValue());
     setExpiresAt(toDateInputValue(existingIngredient.expiresAt));
     setNote(existingIngredient.note ?? '');
-  }, [existingIngredient]);
+    setBarcode(existingIngredient.barcode ?? '');
+    setBrand(existingIngredient.brand ?? '');
+    setSource(existingIngredient.source ?? 'manual');
+  }, [
+    existingIngredient,
+    scannedBarcode,
+    scannedCategory,
+    scannedProductBrand,
+    scannedProductName,
+    scannedShelfLifeDays,
+    scannedSource,
+    scannedUnit,
+  ]);
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -115,6 +182,9 @@ export default function IngredientFormScreen() {
       purchasedAt: purchasedAtValue,
       expiresAt: expiryValue || null,
       note: note.trim() || null,
+      barcode: barcode.trim() || undefined,
+      brand: brand.trim() || undefined,
+      source: barcode.trim() ? source : 'manual',
     };
 
     if (ingredientId && existingIngredient) {
@@ -152,12 +222,32 @@ export default function IngredientFormScreen() {
       title={existingIngredient ? 'Edit ingredient' : 'Add ingredient'}
       subtitle="Capture the basics so inventory stays accurate and suggestions stay useful.">
       <SectionCard title="Ingredient details">
+        {source === 'barcode' ? (
+          <Text style={styles.sourceNote}>
+            Prefilled from barcode scan. You can still edit the details before saving.
+          </Text>
+        ) : null}
         <FormField
           autoCapitalize="words"
           label="Name"
           onChangeText={setName}
           placeholder="Eggs, spinach, parmesan"
           value={name}
+        />
+        <FormField
+          autoCapitalize="none"
+          keyboardType="number-pad"
+          label="Barcode"
+          onChangeText={setBarcode}
+          placeholder="8850000000002"
+          value={barcode}
+        />
+        <FormField
+          autoCapitalize="words"
+          label="Brand"
+          onChangeText={setBrand}
+          placeholder="Optional brand"
+          value={brand}
         />
 
         <ChipSelect
@@ -224,5 +314,11 @@ const styles = StyleSheet.create({
   },
   actionsStack: {
     gap: spacing.sm,
+  },
+  sourceNote: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: spacing.md,
   },
 });

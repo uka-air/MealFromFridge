@@ -28,6 +28,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Meal From Fridge to access your camera for barcode scanning.",
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",

@@ -46,6 +46,12 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="inventory/barcode-scanner"
+            options={{
+              title: "สแกนบาร์โค้ด",
+            }}
+          />
+          <Stack.Screen
             name="recipes/index"
             options={{
               title: "อาหาร",

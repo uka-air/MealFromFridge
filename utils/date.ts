@@ -82,6 +82,12 @@ export function getTodayDateInputValue(today = new Date()) {
   return formatDateParts(startOfDay(today));
 }
 
+export function addDaysToDateInputValue(days: number, today = new Date()) {
+  const nextDate = startOfDay(today);
+  nextDate.setDate(nextDate.getDate() + days);
+  return formatDateParts(nextDate);
+}
+
 export function toDateInputValue(value?: string | null) {
   const parsed = parseComparableDate(value);
   if (!parsed) {
