@@ -5,9 +5,9 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import { AppButton } from "@/components/app-button";
 import { EmptyState } from "@/components/empty-state";
 import {
-  HomeShortcutMenu,
   type HomeShortcutMenuItem,
 } from "@/components/home-shortcut-menu";
+import { HomeHeader } from "@/components/home-header";
 import { RecipeCard } from "@/components/recipe-card";
 import { Screen } from "@/components/screen";
 import { SectionCard } from "@/components/section-card";
@@ -141,11 +141,9 @@ export default function HomeScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerRight: () => <HomeShortcutMenu items={shortcutMenuItems} />,
-        }}
-      />
+      <Stack.Header asChild>
+        <HomeHeader menuItems={shortcutMenuItems} title="Meal From Fridge" />
+      </Stack.Header>
 
       <Screen
         title="วันนี้กินอะไรดี?"

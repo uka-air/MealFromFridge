@@ -32,6 +32,7 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
       <Pressable
         accessibilityLabel="Open shortcut menu"
         accessibilityRole="button"
+        focusable={false}
         hitSlop={8}
         onPress={() => setIsOpen(true)}
         style={({ pressed }) => [
@@ -109,6 +110,9 @@ export function HomeShortcutMenu({ items }: HomeShortcutMenuProps) {
 
 const styles = StyleSheet.create({
   triggerButton: {
+    borderRadius: 0,
+    borderWidth: 0,
+    backgroundColor: "transparent",
     padding: spacing.xs,
     alignItems: "center",
     justifyContent: "center",
