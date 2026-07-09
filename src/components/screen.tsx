@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CookingUndoBanner } from "@/components/cooking-undo-banner";
@@ -9,9 +16,10 @@ interface ScreenProps {
   title: string;
   subtitle?: string;
   children: ReactNode;
+  titleStyle?: StyleProp<TextStyle>;
 }
 
-export function Screen({ title, subtitle, children }: ScreenProps) {
+export function Screen({ title, subtitle, children, titleStyle }: ScreenProps) {
   return (
     <SafeAreaView edges={["left", "right", "bottom"]} style={styles.safeArea}>
       <ScrollView
@@ -21,7 +29,7 @@ export function Screen({ title, subtitle, children }: ScreenProps) {
       >
         <CookingUndoBanner />
         <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, titleStyle]}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
         {children}

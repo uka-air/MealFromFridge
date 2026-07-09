@@ -82,6 +82,18 @@ export function getTodayDateInputValue(today = new Date()) {
   return formatDateParts(startOfDay(today));
 }
 
+export function addDaysToDateInputValue(
+  value: string,
+  days: number,
+  fallbackDate = new Date()
+) {
+  const baseDate = parseComparableDate(value) ?? startOfDay(fallbackDate);
+  const nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + days);
+
+  return formatDateParts(nextDate);
+}
+
 export function toDateInputValue(value?: string | null) {
   const parsed = parseComparableDate(value);
   if (!parsed) {

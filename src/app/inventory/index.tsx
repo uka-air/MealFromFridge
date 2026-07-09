@@ -86,6 +86,11 @@ export default function InventoryScreen() {
           onPress={() => router.push("/inventory/ingredient-form")}
         />
         <AppButton
+          label="เพิ่มจากใบเสร็จ"
+          onPress={() => router.push("/receipt/scan")}
+          variant="secondary"
+        />
+        <AppButton
           label="ดูคำแนะนำ"
           onPress={() => router.push("/suggestions")}
           variant="secondary"
@@ -157,6 +162,7 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: "row",
     gap: spacing.sm,
+    flexWrap: "wrap",
   },
   listGroup: {
     gap: spacing.md,

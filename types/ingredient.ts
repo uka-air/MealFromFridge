@@ -24,10 +24,12 @@ export const INGREDIENT_UNITS = [
 ] as const;
 
 export const INGREDIENT_STATUSES = ['active', 'used_up'] as const;
+export const INGREDIENT_SOURCES = ['manual', 'barcode', 'receipt'] as const;
 
 export type IngredientCategory = (typeof INGREDIENT_CATEGORIES)[number];
 export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
 export type IngredientStatus = (typeof INGREDIENT_STATUSES)[number];
+export type IngredientSource = (typeof INGREDIENT_SOURCES)[number];
 
 export interface Ingredient {
   id: string;
@@ -39,6 +41,9 @@ export interface Ingredient {
   expiresAt: string | null;
   note: string | null;
   status?: IngredientStatus;
+  source?: IngredientSource;
+  receiptRawLine?: string | null;
+  price?: number | null;
 }
 
 export interface IngredientDraft {
@@ -50,6 +55,9 @@ export interface IngredientDraft {
   expiresAt?: string | null;
   note?: string | null;
   status?: IngredientStatus;
+  source?: IngredientSource;
+  receiptRawLine?: string | null;
+  price?: number | null;
 }
 
 export type IngredientUpdate = Partial<IngredientDraft>;

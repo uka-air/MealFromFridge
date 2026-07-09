@@ -116,6 +116,12 @@ export default function HomeScreen() {
         onPress: () => router.push("/inventory/ingredient-form"),
       },
       {
+        key: "receipt-scan",
+        label: "สแกนใบเสร็จ",
+        helper: "ถ่ายหรือเลือกรูปใบเสร็จแล้วเพิ่มของเข้าสต็อก",
+        onPress: () => router.push("/receipt/scan"),
+      },
+      {
         key: "recipes-all",
         label: "อาหารทั้งหมด",
         helper: "ดูสูตรอาหารที่บันทึกไว้",
@@ -161,6 +167,7 @@ export default function HomeScreen() {
 
       <Screen
         title="วันนี้กินอะไรดี?"
+        titleStyle={styles.screenTitle}
         subtitle="ภาพรวมวัตถุดิบ เลือกแนวที่อยากได้ แล้วได้มื้อที่ถูกใจ"
       >
         <View style={styles.statGrid}>
@@ -184,6 +191,10 @@ export default function HomeScreen() {
             label="เมนูโปรด"
             value={String(favoriteRecipesCount)}
           />
+        </View>
+
+        <View style={styles.primaryActionsRow}>
+          <AppButton label="สแกนใบเสร็จ" onPress={() => router.push("/receipt/scan")} />
         </View>
 
         <SectionCard
@@ -313,6 +324,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.md,
+  },
+  screenTitle: {
+    fontSize: 22,
+  },
+  primaryActionsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
   },
   listGroup: {
     gap: spacing.md,

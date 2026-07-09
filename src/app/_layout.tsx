@@ -14,6 +14,7 @@ export default function RootLayout() {
         <Stack
           screenOptions={{
             headerShadowVisible: false,
+            headerBackButtonDisplayMode: "minimal",
             headerStyle: {
               backgroundColor: palette.background,
             },
@@ -43,6 +44,18 @@ export default function RootLayout() {
             name="inventory/ingredient-form"
             options={{
               title: "วัตถุดิบ",
+            }}
+          />
+          <Stack.Screen
+            name="receipt/scan"
+            options={{
+              title: "สแกนใบเสร็จ",
+            }}
+          />
+          <Stack.Screen
+            name="receipt/review"
+            options={{
+              title: "ตรวจรายการใบเสร็จ",
             }}
           />
           <Stack.Screen

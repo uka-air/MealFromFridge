@@ -7,11 +7,13 @@ import type { IngredientQuantityPatch } from '@/types/cooking';
 import {
   INGREDIENT_CATEGORIES,
   INGREDIENT_STATUSES,
+  INGREDIENT_SOURCES,
   INGREDIENT_UNITS,
   type Ingredient,
   type IngredientCategory,
   type IngredientDraft,
   type IngredientStatus,
+  type IngredientSource,
   type IngredientUnit,
   type IngredientUpdate,
 } from '@/types/ingredient';
@@ -20,10 +22,11 @@ import { createId } from '@/utils/id';
 import { isIngredientActive, isIngredientUsedUp } from '@/utils/inventory';
 
 const INVENTORY_STORAGE_KEY = 'meal-from-fridge-inventory';
-const INVENTORY_STORE_VERSION = 3;
+const INVENTORY_STORE_VERSION = 4;
 const DEFAULT_CATEGORY: IngredientCategory = 'other';
 const DEFAULT_UNIT: IngredientUnit = 'item';
 const DEFAULT_STATUS: IngredientStatus = 'active';
+const DEFAULT_SOURCE: IngredientSource = 'manual';
 
 interface InventoryState {
   ingredients: Ingredient[];
@@ -52,6 +55,9 @@ interface LegacyIngredientRecord {
   note?: unknown;
   notes?: unknown;
   status?: unknown;
+  source?: unknown;
+  receiptRawLine?: unknown;
+  price?: unknown;
   createdAt?: unknown;
 }
 
@@ -65,6 +71,10 @@ function isIngredientUnit(value: string): value is IngredientUnit {
 
 function isIngredientStatus(value: string): value is IngredientStatus {
   return INGREDIENT_STATUSES.includes(value as IngredientStatus);
+}
+
+function isIngredientSource(value: string): value is IngredientSource {
+  return INGREDIENT_SOURCES.includes(value as IngredientSource);
 }
 
 function normalizeName(value: string) {
@@ -101,6 +111,14 @@ function normalizeOptionalText(value?: string | null) {
   return trimmedValue ? trimmedValue : null;
 }
 
+function normalizeOptionalPrice(value?: number | null) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  return value;
+}
+
 function normalizePurchasedAt(value?: string) {
   const trimmedValue = value?.trim();
   return trimmedValue ? trimmedValue : new Date().toISOString();
@@ -112,6 +130,10 @@ function resolveIngredientStatus(quantity: number, status?: IngredientStatus) {
   }
 
   return status === 'used_up' ? 'used_up' : DEFAULT_STATUS;
+}
+
+function resolveIngredientSource(source?: IngredientSource) {
+  return source ?? DEFAULT_SOURCE;
 }
 
 function normalizeIngredientDraft(draft: IngredientDraft): Omit<Ingredient, 'id'> {
@@ -126,6 +148,9 @@ function normalizeIngredientDraft(draft: IngredientDraft): Omit<Ingredient, 'id'
     expiresAt: normalizeOptionalText(draft.expiresAt),
     note: normalizeOptionalText(draft.note),
     status: resolveIngredientStatus(quantity, draft.status),
+    source: resolveIngredientSource(draft.source),
+    receiptRawLine: normalizeOptionalText(draft.receiptRawLine),
+    price: normalizeOptionalPrice(draft.price),
   };
 }
 
@@ -151,6 +176,18 @@ function applyIngredientUpdates(ingredient: Ingredient, updates: IngredientUpdat
         : normalizeOptionalText(updates.expiresAt),
     note: updates.note === undefined ? ingredient.note : normalizeOptionalText(updates.note),
     status: resolveIngredientStatus(quantity, updates.status ?? ingredient.status),
+    source:
+      updates.source === undefined
+        ? ingredient.source
+        : resolveIngredientSource(updates.source),
+    receiptRawLine:
+      updates.receiptRawLine === undefined
+        ? ingredient.receiptRawLine
+        : normalizeOptionalText(updates.receiptRawLine),
+    price:
+      updates.price === undefined
+        ? ingredient.price
+        : normalizeOptionalPrice(updates.price),
   };
 }
 
@@ -263,6 +300,10 @@ function migrateIngredientRecord(record: unknown): Ingredient | null {
     typeof legacyIngredient.status === 'string' && isIngredientStatus(legacyIngredient.status)
       ? legacyIngredient.status
       : undefined;
+  const source =
+    typeof legacyIngredient.source === 'string' && isIngredientSource(legacyIngredient.source)
+      ? legacyIngredient.source
+      : undefined;
 
   return {
     id: legacyIngredient.id,
@@ -277,6 +318,14 @@ function migrateIngredientRecord(record: unknown): Ingredient | null {
         : null,
     note: normalizeOptionalText(note),
     status: resolveIngredientStatus(quantity, status),
+    source: resolveIngredientSource(source),
+    receiptRawLine:
+      typeof legacyIngredient.receiptRawLine === 'string'
+        ? normalizeOptionalText(legacyIngredient.receiptRawLine)
+        : null,
+    price: normalizeOptionalPrice(
+      typeof legacyIngredient.price === 'number' ? legacyIngredient.price : null
+    ),
   };
 }
 
