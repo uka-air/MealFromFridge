@@ -35,6 +35,13 @@ npm run reset-project
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
+- You only need project dependencies installed (`npm install`) so your local project and scripts are up to date.
+- **Local Xcode archive flow:**
+  1. `npm install`
+  2. `npx expo prebuild -p ios` (or `npx expo run:ios`, which generates native folders when needed)
+  3. `cd ios && pod install`
+  4. `open ios/xxx.xcworkspace` in Xcode and archive.
+
 ### Other setup steps
 
 - To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
@@ -47,6 +54,32 @@ To learn more about developing your project with Expo, look at the following res
 
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
 - [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+
+## Receipt OCR setup
+
+1. Copy the mobile example env file and choose the OCR provider:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Copy the backend example env file and place your Google service account JSON at `server/service-account.json`:
+
+   ```bash
+   cp server/.env.example server/.env
+   ```
+
+3. Start the OCR backend:
+
+   ```bash
+   npm run server:dev
+   ```
+
+4. Start the Expo app:
+
+   ```bash
+   npx expo start
+   ```
 
 ## Join the community
 
