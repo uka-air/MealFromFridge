@@ -46,6 +46,7 @@ export const mockOCRService: OCRService = {
     return {
       rawText: pickReceiptText(imageUri),
       confidence: 0.86,
+      provider: 'mock',
     };
   },
 };

@@ -17,11 +17,72 @@ import { EmptyState } from '@/components/empty-state';
 import { Screen } from '@/components/screen';
 import { SectionCard } from '@/components/section-card';
 import { palette, radius, spacing } from '@/constants/theme';
+import {
+  ocrService,
+  isRemoteOCRProvider,
+  ocrServiceMode,
+  remoteOCRDebugEndpoint,
+} from '@/services/ocr';
+import { OCRServiceError, type OCRService } from '@/services/ocr/OCRService';
 import { mockOCRService } from '@/services/ocr/mockOCRService';
 import { useReceiptImportStore } from '@/store/useReceiptImportStore';
 import { getTodayDateInputValue } from '@/utils/date';
 import { createReceiptReviewItem } from '@/utils/receiptImport';
 import { parseReceiptText } from '@/utils/receiptParser';
+
+const RECEIPT_TIPS = [
+  'ถ่ายให้เห็นทั้งใบ',
+  'วางบนพื้นสีเข้ม',
+  'อย่าให้เงาทับตัวหนังสือ',
+  'ถ่ายให้ตรงและชัด',
+  'ถ้าใบยาว ให้ถ่ายทีละครึ่งใบได้ในอนาคต',
+] as const;
+
+function getOCRFailureMessage(error: unknown) {
+  if (error instanceof OCRServiceError) {
+    if (error.code === 'config') {
+      return __DEV__ && error.message
+        ? `ตั้งค่า OCR ยังไม่ครบ: ${error.message}`
+        : 'การตั้งค่า OCR ยังไม่ครบ';
+    }
+
+    if (error.status === 400 || error.code === 'invalid_image') {
+      return 'รูปใบเสร็จยังไม่พร้อมใช้งาน ลองถ่ายใหม่ให้ครบและคมชัด';
+    }
+
+    if (error.status === 413) {
+      return 'รูปมีขนาดใหญ่เกินไป ลองถ่ายให้ใกล้ขึ้นหรือครอปให้เหลือเฉพาะใบเสร็จ';
+    }
+
+    if (error.status === 504 || error.code === 'timeout') {
+      return 'อ่านข้อความใช้เวลานานเกินไป ลองถ่ายใหม่ให้ใบเสร็จตรงและชัดขึ้น';
+    }
+
+    if (error.code === 'network') {
+      return isRemoteOCRProvider
+        ? 'ติดต่อเซิร์ฟเวอร์ OCR ไม่ได้ ตรวจสอบว่าแบ็กเอนด์เปิดอยู่ และถ้าใช้มือถือจริงให้เชื่อมผ่าน IP ของคอมพิวเตอร์'
+        : 'ติดต่อเซิร์ฟเวอร์ OCR ไม่ได้';
+    }
+
+    if (error.code === 'empty') {
+      return 'อ่านข้อความไม่สำเร็จ ลองถ่ายใหม่ให้ใบเสร็จชัดขึ้น';
+    }
+
+    if (error.code === 'server') {
+      return __DEV__ && error.message
+        ? `OCR server error: ${error.message}`
+        : 'เซิร์ฟเวอร์ OCR มีปัญหา ลองใหม่อีกครั้ง';
+    }
+
+    if (error.code === 'unknown') {
+      return __DEV__ && error.message
+        ? `Unexpected OCR error: ${error.message}`
+        : 'อ่านข้อความไม่สำเร็จ ลองใหม่อีกครั้ง';
+    }
+  }
+
+  return 'อ่านข้อความไม่สำเร็จ ลองถ่ายใหม่ให้ใบเสร็จชัดขึ้น';
+}
 
 export default function ReceiptScanScreen() {
   const router = useRouter();
@@ -33,6 +94,8 @@ export default function ReceiptScanScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrErrorMessage, setOcrErrorMessage] = useState<string | null>(null);
+  const [lastAttemptUsedRemoteOCR, setLastAttemptUsedRemoteOCR] = useState(false);
 
   const handlePickFromLibrary = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -52,6 +115,7 @@ export default function ReceiptScanScreen() {
 
     if (!result.canceled && result.assets.length) {
       setImageUri(result.assets[0].uri);
+      setOcrErrorMessage(null);
     }
   };
 
@@ -67,6 +131,7 @@ export default function ReceiptScanScreen() {
       });
       if (photo?.uri) {
         setImageUri(photo.uri);
+        setOcrErrorMessage(null);
       }
     } catch {
       Alert.alert('ถ่ายรูปไม่สำเร็จ', 'ลองถ่ายใหม่อีกครั้งได้เลย');
@@ -75,7 +140,7 @@ export default function ReceiptScanScreen() {
     }
   };
 
-  const handleUseImage = async () => {
+  const processImageWithOCR = async (service: OCRService, usingRemoteOCR: boolean) => {
     if (!imageUri) {
       Alert.alert('ยังไม่มีรูปภาพ', 'กรุณาถ่ายรูปหรือเลือกรูปใบเสร็จก่อน');
       return;
@@ -83,9 +148,11 @@ export default function ReceiptScanScreen() {
 
     try {
       setIsProcessing(true);
+      setOcrErrorMessage(null);
+      setLastAttemptUsedRemoteOCR(usingRemoteOCR);
       clearDraftImport();
 
-      const ocrResult = await mockOCRService.extractTextFromImage(imageUri);
+      const ocrResult = await service.extractTextFromImage(imageUri);
       const parsedReceipt = parseReceiptText(ocrResult.rawText);
 
       if (!parsedReceipt.items.length) {
@@ -105,14 +172,21 @@ export default function ReceiptScanScreen() {
       });
 
       router.push('/receipt/review');
-    } catch {
-      Alert.alert(
-        'อ่านข้อความจากใบเสร็จไม่สำเร็จ',
-        'ตอนนี้ระบบ OCR แบบจำลองยังประมวลผลรูปนี้ไม่ได้ ลองเปลี่ยนรูปแล้วอีกครั้ง'
-      );
+    } catch (error) {
+      const message = getOCRFailureMessage(error);
+      setOcrErrorMessage(message);
+      Alert.alert('อ่านข้อความไม่สำเร็จ', message);
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleUseImage = async () => {
+    await processImageWithOCR(ocrService, isRemoteOCRProvider);
+  };
+
+  const handleUseMockFallback = async () => {
+    await processImageWithOCR(mockOCRService, false);
   };
 
   const cameraReady = cameraPermission?.granted;
@@ -121,30 +195,68 @@ export default function ReceiptScanScreen() {
     <Screen
       title="สแกนใบเสร็จ"
       subtitle="ถ่ายรูปหรือเลือกรูปใบเสร็จ แล้วให้ระบบดึงรายการวัตถุดิบมาให้ตรวจสอบก่อนเพิ่มเข้าสต็อก">
+      <SectionCard
+        title="เคล็ดลับให้ OCR อ่านง่ายขึ้น"
+        subtitle={`ตอนนี้ใช้ OCR แบบ ${ocrServiceMode === 'remote' ? 'Google Vision ผ่านแบ็กเอนด์' : 'ข้อมูลตัวอย่างในเครื่อง'}`}>
+        <View style={styles.tipsList}>
+          {RECEIPT_TIPS.map((tip) => (
+            <Text key={tip} style={styles.tipText}>
+              • {tip}
+            </Text>
+          ))}
+          {__DEV__ && remoteOCRDebugEndpoint ? (
+            <Text style={styles.endpointText}>OCR endpoint: {remoteOCRDebugEndpoint}</Text>
+          ) : null}
+        </View>
+      </SectionCard>
+
       <View style={styles.actionsRow}>
         <AppButton label="เลือกรูปจากแกลเลอรี" onPress={handlePickFromLibrary} variant="secondary" />
       </View>
 
       {imageUri ? (
-        <SectionCard title="ตัวอย่างใบเสร็จ" subtitle="ตรวจดูรูปก่อนส่งเข้า OCR แบบจำลอง">
+        <SectionCard title="ตัวอย่างใบเสร็จ" subtitle="ตรวจดูรูปก่อนส่งเข้า OCR">
           <Image source={{ uri: imageUri }} style={styles.previewImage} />
           <View style={styles.actionsRow}>
             <AppButton
               label="ถ่ายใหม่"
-              onPress={() => setImageUri(null)}
+              onPress={() => {
+                setImageUri(null);
+                setOcrErrorMessage(null);
+              }}
               variant="secondary"
             />
             <AppButton
-              label={isProcessing ? 'กำลังอ่านใบเสร็จ...' : 'ใช้รูปนี้'}
+              label={isProcessing ? 'กำลังอ่านข้อความจากใบเสร็จ...' : 'ใช้รูปนี้'}
               onPress={handleUseImage}
               disabled={isProcessing}
               style={styles.primaryAction}
             />
           </View>
+          {ocrErrorMessage ? (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorTitle}>ลองอีกครั้งได้เลย</Text>
+              <Text style={styles.errorText}>{ocrErrorMessage}</Text>
+              <View style={styles.actionsRow}>
+                <AppButton
+                  label="ลองอีกครั้ง"
+                  onPress={handleUseImage}
+                  variant="secondary"
+                />
+                {__DEV__ && isRemoteOCRProvider && lastAttemptUsedRemoteOCR ? (
+                  <AppButton
+                    label="ลองใช้ข้อมูลตัวอย่างแทน"
+                    onPress={handleUseMockFallback}
+                    variant="ghost"
+                  />
+                ) : null}
+              </View>
+            </View>
+          ) : null}
           {isProcessing ? (
             <View style={styles.processingRow}>
               <ActivityIndicator color={palette.accentStrong} />
-              <Text style={styles.processingText}>กำลังอ่านข้อความและแยกรายการสินค้า</Text>
+              <Text style={styles.processingText}>กำลังอ่านข้อความจากใบเสร็จ...</Text>
             </View>
           ) : null}
         </SectionCard>
@@ -186,9 +298,23 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+    flexWrap: 'wrap',
   },
   primaryAction: {
     flex: 1,
+  },
+  tipsList: {
+    gap: spacing.xs,
+  },
+  tipText: {
+    color: palette.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  endpointText: {
+    color: palette.info,
+    fontSize: 12,
+    lineHeight: 18,
   },
   previewImage: {
     width: '100%',
@@ -236,6 +362,24 @@ const styles = StyleSheet.create({
   processingText: {
     color: palette.textMuted,
     fontSize: 13,
+  },
+  errorCard: {
+    borderWidth: 1,
+    borderColor: palette.danger,
+    borderRadius: radius.md,
+    backgroundColor: palette.dangerSoft,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  errorTitle: {
+    color: palette.danger,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: palette.text,
+    fontSize: 13,
+    lineHeight: 18,
   },
   permissionState: {
     alignItems: 'center',

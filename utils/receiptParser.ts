@@ -7,12 +7,35 @@ const FOOD_STOP_WORDS = [
   'sub total',
   'total',
   'vat',
+  'vat included',
+  'vat incl',
   'change',
   'cashier',
   'cash',
   'visa',
   'mastercard',
   'member',
+  'branch',
+  'receipt',
+  'tax invoice',
+  'tax:inv',
+  'tax inv',
+  'inv',
+  'invoice / receipt',
+  'tax id',
+  'company',
+  'co., ltd',
+  'co. ltd',
+  'limited',
+  'สำนักงานใหญ่',
+  'สาขา',
+  'ใบกำกับภาษี',
+  'ใบเสร็จรับเงิน',
+  'ใบเสร็จ',
+  'เลขประจำตัวผู้เสียภาษี',
+  'vat included',
+  'รวมภาษี',
+  'ราคารวมภาษี',
   'promotion',
   'promo',
   'discount',
@@ -37,8 +60,11 @@ const RECEIPT_UNIT_ALIASES: Record<string, string> = {
   gram: 'g',
   grams: 'g',
   กรัม: 'g',
+  ก: 'g',
   kg: 'kg',
   กก: 'kg',
+  กิโล: 'kg',
+  กิโลกรัม: 'kg',
   ml: 'ml',
   มล: 'ml',
   l: 'l',
@@ -68,6 +94,12 @@ const RECEIPT_UNIT_ALIASES: Record<string, string> = {
   ชิ้น: 'item',
   ถ้วย: 'item',
 };
+
+const RECEIPT_UNIT_PATTERN = Object.keys(RECEIPT_UNIT_ALIASES)
+  .sort((left, right) => right.length - left.length)
+  .map((unit) => unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  .join('|');
+const RECEIPT_UNIT_BOUNDARY_PATTERN = '(?=$|\\s|[xX×*]|[),.;:])';
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
@@ -110,6 +142,14 @@ function parseReceiptDate(line: string) {
     .padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 }
 
+function hasReceiptDate(line: string) {
+  return parseReceiptDate(line) !== null;
+}
+
+function hasTimeValue(line: string) {
+  return /\b\d{1,2}:\d{2}(?::\d{2})?\b/.test(line);
+}
+
 function extractMoneyValues(line: string) {
   return [...line.matchAll(/(\d{1,3}(?:,\d{3})*|\d+)(?:\.(\d{2}))?/g)]
     .map((match) => {
@@ -121,8 +161,15 @@ function extractMoneyValues(line: string) {
 }
 
 function extractPrice(line: string) {
-  const values = extractMoneyValues(line);
+  const values = [...line.matchAll(/(?:^|\s)(\d{1,3}(?:,\d{3})*|\d+)\.(\d{2})(?=\s|$)/g)]
+    .map((match) => Number(`${match[1].replace(/,/g, '')}.${match[2]}`))
+    .filter((value) => Number.isFinite(value));
+
   return values.length ? values[values.length - 1] : undefined;
+}
+
+function hasReceiptStylePrice(line: string) {
+  return /(?:^|\s)\d{1,3}(?:,\d{3})*\.\d{2}(?:\s|$)/.test(line);
 }
 
 function extractBarcode(line: string) {
@@ -141,7 +188,10 @@ function normalizeReceiptUnit(unit?: string) {
 
 function extractQuantityAndUnit(line: string) {
   const quantityWithUnitMatch = line.match(
-    /(\d+(?:\.\d+)?)\s*(kg|g|gram|grams|ml|l|litre|liter|pack|packs|pcs|pc|item|items|กรัม|กก|มล|ลิตร|แพ็ค|แพค|ซอง|ถุง|กล่อง|กระป๋อง|ขวด|ชิ้น|ฟอง|ถ้วย)\b/i
+    new RegExp(
+      `(\\d+(?:\\.\\d+)?)\\s*(${RECEIPT_UNIT_PATTERN})${RECEIPT_UNIT_BOUNDARY_PATTERN}`,
+      'i'
+    )
   );
   if (quantityWithUnitMatch) {
     return {
@@ -151,7 +201,10 @@ function extractQuantityAndUnit(line: string) {
   }
 
   const trailingCountMatch = line.match(
-    /(?:x|X)?\s*(\d+(?:\.\d+)?)\s*(ฟอง|ชิ้น|ถ้วย|pack|pcs|items?)\b/i
+    new RegExp(
+      `(?:x|X)?\\s*(\\d+(?:\\.\\d+)?)\\s*(ฟอง|ชิ้น|ถ้วย|pack|packs|pcs|items?)${RECEIPT_UNIT_BOUNDARY_PATTERN}`,
+      'i'
+    )
   );
   if (trailingCountMatch) {
     return {
@@ -171,7 +224,10 @@ function cleanProductName(line: string, quantity?: number, unit?: string, price?
     .replace(/^\s*\d+\s+/, '')
     .replace(/\b\d{8,14}\b/g, '')
     .replace(
-      /\b\d+(?:\.\d+)?\s*(kg|g|gram|grams|ml|l|litre|liter|pack|packs|pcs|pc|item|items|กรัม|กก|มล|ลิตร|แพ็ค|แพค|ซอง|ถุง|กล่อง|กระป๋อง|ขวด|ชิ้น|ฟอง|ถ้วย)\b/gi,
+      new RegExp(
+        `\\b\\d+(?:\\.\\d+)?\\s*(${RECEIPT_UNIT_PATTERN})${RECEIPT_UNIT_BOUNDARY_PATTERN}`,
+        'gi'
+      ),
       ' '
     )
     .replace(/\s{2,}/g, ' ')
@@ -203,6 +259,40 @@ function isObviousNonFoodLine(line: string) {
   return FOOD_STOP_WORDS.some((word) => normalizedLine.includes(word));
 }
 
+function looksLikeReceiptMetadataLine(line: string, index: number) {
+  const normalizedLine = normalize(line);
+
+  if (
+    /^[#:]?\s*(branch|สาขา)\b/.test(normalizedLine) ||
+    /(tax\s*:?\s*inv|tax invoice|invoice\/receipt|receipt no|receipt number|tax id|เลขที่ใบเสร็จ|เลขที่)\b/.test(
+      normalizedLine
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    (hasReceiptDate(line) || hasTimeValue(line)) &&
+    extractMoneyValues(line).length <= 1 &&
+    !extractQuantityAndUnit(line).unit
+  ) {
+    return true;
+  }
+
+  if (
+    index <= 4 &&
+    extractMoneyValues(line).length === 0 &&
+    !extractQuantityAndUnit(line).unit &&
+    /(company|co\.,?\s*ltd|limited|สำนักงานใหญ่|สาขา|tax invoice|receipt)/.test(
+      normalizedLine
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function looksLikeStoreName(line: string, index: number) {
   return (
     index <= 1 &&
@@ -214,6 +304,63 @@ function looksLikeStoreName(line: string, index: number) {
 
 function looksFoodLike(name: string) {
   return /[A-Za-zก-๙]/.test(name) && name.trim().length >= 2;
+}
+
+function hasItemSignals(line: string) {
+  const { quantity, unit } = extractQuantityAndUnit(line);
+  return (
+    hasReceiptStylePrice(line) ||
+    quantity !== undefined ||
+    unit !== undefined ||
+    extractBarcode(line) !== undefined
+  );
+}
+
+function isLikelyWrappedTailLine(line: string) {
+  const normalizedLine = line.trim();
+  if (!normalizedLine) {
+    return false;
+  }
+
+  if (hasReceiptDate(line) || hasTimeValue(line) || isObviousNonFoodLine(line)) {
+    return false;
+  }
+
+  const simpleTailPattern = new RegExp(
+    `^(?:x|X)?\\s*\\d+(?:\\.\\d+)?(?:\\s*(?:${RECEIPT_UNIT_PATTERN})${RECEIPT_UNIT_BOUNDARY_PATTERN})?(?:\\s*[xX×*]\\s*\\d+(?:\\.\\d+)?)?(?:\\s+\\d+(?:\\.\\d{2})?)?$`,
+    'i'
+  );
+
+  return simpleTailPattern.test(normalizedLine);
+}
+
+function mergeWrappedReceiptLines(lines: string[]) {
+  const mergedLines: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    let currentLine = lines[index];
+
+    while (index + 1 < lines.length) {
+      const nextLine = lines[index + 1];
+      const shouldMerge =
+        looksFoodLike(currentLine) &&
+        extractPrice(currentLine) === undefined &&
+        !isObviousNonFoodLine(currentLine) &&
+        !looksLikeReceiptMetadataLine(currentLine, index) &&
+        isLikelyWrappedTailLine(nextLine);
+
+      if (!shouldMerge) {
+        break;
+      }
+
+      currentLine = `${currentLine} ${nextLine}`.replace(/\s{2,}/g, ' ').trim();
+      index += 1;
+    }
+
+    mergedLines.push(currentLine);
+  }
+
+  return mergedLines;
 }
 
 function buildParsedItem(rawLine: string): ParsedReceiptItem | null {
@@ -260,16 +407,55 @@ function buildParsedItem(rawLine: string): ParsedReceiptItem | null {
   };
 }
 
+function looksLikeProbableItemLine(line: string, index: number) {
+  if (isObviousNonFoodLine(line) || looksLikeReceiptMetadataLine(line, index)) {
+    return false;
+  }
+
+  const parsedItem = buildParsedItem(line);
+  if (!parsedItem) {
+    return false;
+  }
+
+  return hasItemSignals(line);
+}
+
+function getItemSectionBounds(lines: string[]) {
+  const firstItemIndex = lines.findIndex((line, index) =>
+    looksLikeProbableItemLine(line, index)
+  );
+
+  if (firstItemIndex < 0) {
+    return null;
+  }
+
+  let lastItemIndex = firstItemIndex;
+  for (let index = lines.length - 1; index >= firstItemIndex; index -= 1) {
+    if (looksLikeProbableItemLine(lines[index], index)) {
+      lastItemIndex = index;
+      break;
+    }
+  }
+
+  return {
+    firstItemIndex,
+    lastItemIndex,
+  };
+}
+
 export function parseReceiptText(rawText: string): ParsedReceipt {
-  const lines = rawText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  const lines = mergeWrappedReceiptLines(
+    rawText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+  );
 
   const items: ParsedReceiptItem[] = [];
   let storeName: string | undefined;
   let purchasedAt: string | undefined;
   let total: number | undefined;
+  const itemSectionBounds = getItemSectionBounds(lines);
 
   lines.forEach((line, index) => {
     if (!storeName && looksLikeStoreName(line, index)) {
@@ -292,7 +478,22 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
       total = extractPrice(line);
     }
 
+    if (
+      itemSectionBounds &&
+      (index < itemSectionBounds.firstItemIndex || index > itemSectionBounds.lastItemIndex)
+    ) {
+      return;
+    }
+
     if (isObviousNonFoodLine(line)) {
+      return;
+    }
+
+    if (looksLikeReceiptMetadataLine(line, index)) {
+      return;
+    }
+
+    if (!hasItemSignals(line)) {
       return;
     }
 
